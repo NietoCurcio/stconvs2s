@@ -3,3 +3,15 @@
 *.hdf
 *.nc
 **/dask-worker-space
+output/
+
+herbie_data/
+
+gfs*
+*.txt
+*.ipynb
+*.tar
+*.png
+
+grid_figures/
+ztarget/

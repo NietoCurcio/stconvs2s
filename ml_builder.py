@@ -39,7 +39,7 @@ class MLBuilder:
         # Loading the dataset
         ds = xr.open_mfdataset(self.dataset_file)
         if (self.config.small_dataset):
-            ds = ds[dict(sample=slice(0,500))]
+            ds = ds[dict(sample=slice(0,3))]
 
         train_dataset = NetCDFDataset(ds, test_split=test_split, 
                                       validation_split=validation_split)
@@ -176,10 +176,12 @@ class MLBuilder:
     def __get_dataset_file(self):
         dataset_file, dataset_name = None, None
         if (self.config.chirps):
-            dataset_file = 'data/dataset-chirps-1981-2019-seq5-ystep' + self.step + '.nc'
+            dataset_file = 'data/output_dataset.nc'
+            # dataset_file = 'data/output_dataset_brinquedo.nc'
             dataset_name = 'chirps'
         else:
-            dataset_file = 'data/dataset-ucar-1979-2015-seq5-ystep' + self.step + '.nc'
+            dataset_file = 'data/output_dataset.nc'
+            # dataset_file = 'data/output_dataset_brinquedo.nc'
             dataset_name = 'cfsr'
         
         return dataset_name, dataset_file

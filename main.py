@@ -101,7 +101,14 @@ if __name__ == '__main__':
         message = run(model_builder, args.iteration, util)
         message['step'] = args.step
         message['hostname'] = platform.node()
+
+        print('email message:')
+        print(message)
+
     except Exception as e:
+        print("ERROR")
+        print(e)
         traceback.print_exc()
         message = '=> Error: ' + str(e)
     util.send_email(message, args.email)
+    print('Success!')

@@ -84,31 +84,113 @@ class Util:
             np.savetxt(train_filename, train_losses, delimiter=",", fmt='%g')
             np.savetxt(val_filename, val_losses, delimiter=",", fmt='%g')
             
-    def save_examples(self, inputs, target, output, step):
-        input_seq_length = inputs.shape[2]
-        row = step // input_seq_length
-        fig_input, ax_input = plt.subplots(nrows=1, ncols=input_seq_length)
-        fig_ground_truth, ax_ground_truth = plt.subplots(nrows=row, ncols=input_seq_length)
-        fig_prediction, ax_prediction = plt.subplots(nrows=row, ncols=input_seq_length)
-        count = 0
-        for i in range(row):
-            for j in range(input_seq_length):
-                if step == 5:
-                    ax_input[j] = self.__create_image_plot(inputs, ax_input, i, j, count+j, step)  
-                    ax_ground_truth[j] = self.__create_image_plot(target, ax_ground_truth, i,j ,count+j, step)
-                    ax_prediction[j] = self.__create_image_plot(output, ax_prediction, i,j ,count+j, step)
-                else:
-                    if i == 0:
-                        ax_input[j] = self.__create_image_plot(inputs, ax_input, i, j, count+j, step, ax_input=True)
-                    ax_ground_truth[i][j] = self.__create_image_plot(target, ax_ground_truth, i,j ,count+j, step)
-                    ax_prediction[i][j] = self.__create_image_plot(output, ax_prediction, i,j ,count+j, step)
-            count+=5
-                    
-        examples_dir = self.__create_dir('examples')
-        self.__save_image_plot(fig_input, examples_dir, 'input', step, fig_input=True)
-        self.__save_image_plot(fig_ground_truth, examples_dir, 'ground_truth', step)
-        self.__save_image_plot(fig_prediction, examples_dir, 'prediction', step)
-    
+    def save_examples(
+        self,
+        inputs: torch.Tensor,
+        target: torch.Tensor,
+        output: torch.Tensor,
+        step: int
+    ):
+        print("Saving examples in grid_figures folder")
+        features_tuple = {
+            "tp": "Total precipitation",
+            "r200": "Relative humidity at 200 hPa",
+            "r700": "Relative humidity at 700 hPa",
+            "r1000": "Relative humidity at 1000 hPa",
+            "t200": "Temperature at 200 hPa",
+            "t700": "Temperature at 700 hPa",
+            "t1000": "Temperature at 1000 hPa",
+            "u200": "U component of wind at 200 hPa",
+            "u700": "U component of wind at 700 hPa",
+            "u1000": "U component of wind at 1000 hPa",
+            "v200": "V component of wind at 200 hPa",
+            "v700": "V component of wind at 700 hPa",
+            "v1000": "V component of wind at 1000 hPa",
+            "speed200": "Speed of wind at 200 hPa",
+            "speed700": "Speed of wind at 700 hPa",
+            "speed1000": "Speed of wind at 1000 hPa",
+            "w200": "Vertical velocity at 200 hPa",
+            "w700": "Vertical velocity at 700 hPa",
+            "w1000": "Vertical velocity at 1000 hPa",
+        }
+        
+        # num_rows = len(features_tuple)
+        # num_cols = 4
+        # fig, axes = plt.subplots(num_rows, num_cols, figsize=(20, num_rows * 4))
+
+        cmap = 'YlGnBu' if self.base_filename.startswith('chirps') else 'viridis'
+
+        def plot_single_axis(tensor, ax, title):
+            im = ax.imshow(tensor, aspect="auto", cmap=cmap)
+            ax.set_title(title, fontsize=8)
+            ax.axis("off")
+            return im
+
+        sample = 0
+        channel = 0
+
+        seq_len = inputs.shape[2]
+        sample = 0
+        inputs = inputs[sample, :, :, :].cpu().numpy()
+        output = output[sample, :, :, :].cpu().numpy()
+        target = target[sample, :, :, :].cpu().numpy()
+
+        for channel, (key, feature_name) in enumerate(features_tuple.items()):
+            fig, axes = plt.subplots(3, 5, figsize=(12, 8))
+
+            for t in range(seq_len):
+                plot_single_axis(inputs[channel, t, :, :], axes[0, t], f"T{t}")
+                plot_single_axis(output[channel, t, :, :], axes[1, t], f"T{t}")
+                plot_single_axis(target[channel, t, :, :], axes[2, t], f"T{t}")
+
+            row_labels = ["Input", "Prediction", "Target"]
+            for row, label in enumerate(row_labels):
+                axes[row, 0].text(
+                    -0.1, 0.5, label,
+                    va="center",
+                    ha="right",
+                    fontsize=8,
+                    transform=axes[row, 0].transAxes
+                )
+
+            plt.suptitle(f"feature_name (sample={sample}, channel={channel})", fontsize=16)
+            plt.tight_layout(rect=[0.05, 0.03, 1, 0.95])
+            plt.savefig(f"./grid_figures/{key}_figure.png", dpi=600)
+            plt.close(fig)
+            # break
+        
+        num_rows = len(features_tuple)
+        num_cols = 4
+        fig, axes = plt.subplots(num_rows, num_cols, figsize=(20, num_rows * 4))
+
+        timestep = inputs.shape[1] - 1
+        print(f"shape inputs: {inputs.shape}")
+        print(f"shape output: {output.shape}")
+        print(f"shape target: {target.shape}")
+        print(f"timestep: {timestep}")
+        # return
+
+        for channel, (key, feature_name) in enumerate(features_tuple.items()):
+            axes[channel, 0].axis("off")
+            axes[channel, 0].text(0.5, 0.5, feature_name, ha="center", va="center", fontsize=16)
+
+            _ = axes[channel, 1].imshow(inputs[channel, timestep], aspect="auto", cmap="viridis")
+            axes[channel, 1].set_title("Input")
+            # fig.colorbar(im1, ax=axes[channel, 1], orientation="vertical")
+
+            _ = axes[channel, 2].imshow(output[channel, timestep], aspect="auto", cmap="viridis")
+            axes[channel, 2].set_title("Prediction")
+            # fig.colorbar(im2, ax=axes[channel, 2], orientation="vertical")
+
+            _ = axes[channel, 3].imshow(target[channel, timestep], aspect="auto", cmap="viridis")
+            axes[channel, 3].set_title("Target")
+            # fig.colorbar(im3, ax=axes[channel, 3], orientation="vertical")
+            # break
+
+        plt.tight_layout()
+        plt.savefig("./grid_figures/full_grid_figure.png", dpi=300)
+        plt.show()
+
     def get_checkpoint_filename(self):
         check_dir = self.__create_dir('checkpoints')
         filename = os.path.join(check_dir, self.base_filename + '.pth.tar')

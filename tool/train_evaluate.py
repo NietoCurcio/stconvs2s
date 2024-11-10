@@ -3,6 +3,7 @@ import numpy as np
 
 import torch
 import torch.nn.functional as F
+from tqdm import tqdm
 
 class Trainer:
     
@@ -22,7 +23,7 @@ class Trainer:
     def fit(self, filename, is_chirps=False):
         train_losses, val_losses = [], []
 
-        for epoch in range(1,self.epochs+1):
+        for epoch in tqdm(range(1,self.epochs+1)):
             train_loss = self.__train(is_chirps)
             evaluator = Evaluator(self.model, self.loss_fn, self.optimizer, self.val_loader, self.device, self.util)
             val_loss,_ = evaluator.eval(is_test=False, is_chirps=is_chirps)
