@@ -101,7 +101,7 @@ class EarlyStopping:
     
 class Evaluator:
         
-    def __init__(self, model, loss_fn, optimizer, data_loader, device, util=None, step=0):
+    def __init__(self, model, loss_fn, optimizer, data_loader, device, util=None, step=0, iteration_number=1):
         self.model = model
         self.loss_fn = loss_fn
         self.optimizer = optimizer
@@ -109,6 +109,7 @@ class Evaluator:
         self.util = util
         self.step = int(step)
         self.device = device
+        self.iteration_number = iteration_number
        
     def eval(self, is_test=True, is_chirps=False):
         self.model.eval()
@@ -138,7 +139,7 @@ class Evaluator:
                         observation_mae[i] += mae_loss_obs.item()
         
             if is_test:             
-                self.util.save_examples(inputs, target, output, self.step)
+                self.util.save_examples(inputs, target, output, self.step, self.iteration_number)
                 print('>>>>>>>>> Metric per observation (lat x lon) at each time step (t)')
                 print('RMSE')
                 print(*np.divide(observation_rmse, batch_i+1), sep = ",")

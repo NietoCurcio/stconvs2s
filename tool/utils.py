@@ -89,7 +89,8 @@ class Util:
         inputs: torch.Tensor,
         target: torch.Tensor,
         output: torch.Tensor,
-        step: int
+        step: int,
+        iteration_number: int,
     ):
         print("Saving examples in grid_figures folder")
         features_tuple = {
@@ -113,6 +114,8 @@ class Util:
             "w700": "Vertical velocity at 700 hPa",
             "w1000": "Vertical velocity at 1000 hPa",
         }
+
+        os.makedirs(f"./grid_figures/iteration_{iteration_number}", exist_ok=True)
         
         # num_rows = len(features_tuple)
         # num_cols = 4
@@ -155,7 +158,7 @@ class Util:
 
             plt.suptitle(f"feature_name (sample={sample}, channel={channel})", fontsize=16)
             plt.tight_layout(rect=[0.05, 0.03, 1, 0.95])
-            plt.savefig(f"./grid_figures/{key}_figure.png", dpi=600)
+            plt.savefig(f"./grid_figures/iteration_{iteration_number}/{key}_figure.png", dpi=600)
             plt.close(fig)
             # break
         
@@ -188,7 +191,7 @@ class Util:
             # break
 
         plt.tight_layout()
-        plt.savefig("./grid_figures/full_grid_figure.png", dpi=300)
+        plt.savefig(f"./grid_figures/iteration_{iteration_number}/full_grid_figure.png", dpi=300)
         plt.show()
 
     def get_checkpoint_filename(self):

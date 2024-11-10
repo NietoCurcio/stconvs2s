@@ -135,7 +135,7 @@ class MLBuilder:
                 
     
     def __load_and_evaluate(self, model, criterion, optimizer, test_loader, train_time, util):  
-        evaluator = Evaluator(model, criterion, optimizer, test_loader, self.device, util, self.step)
+        evaluator = Evaluator(model, criterion, optimizer, test_loader, self.device, util, self.step, self.iteration_number)
         if self.config.pre_trained is not None:
             # Load pre-trained model
             best_epoch, val_loss = evaluator.load_checkpoint(self.config.pre_trained, self.dataset_type, self.config.model)
@@ -160,6 +160,7 @@ class MLBuilder:
                 }
           
     def __define_seed(self, number):      
+        self.iteration_number = number
         if (~self.config.no_seed):
             # define a different seed in every iteration 
             seed = (number * 10) + 1000
