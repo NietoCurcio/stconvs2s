@@ -60,6 +60,22 @@ class MLBuilder:
                   'num_workers': self.config.workers, 
                   'worker_init_fn': self.__init_seed}
 
+        cyan_color = '\033[96m'
+        reset_color = '\033[0m'
+        print(f"""
+            {cyan_color}
+            Data Shapes:
+            X_train: {train_dataset.X.shape}
+            y_train: {train_dataset.y.shape}
+
+            X_val: {val_dataset.X.shape}
+            y_val: {val_dataset.y.shape}
+
+            X_test: {test_dataset.X.shape}
+            y_test: {test_dataset.y.shape}
+            {reset_color}
+        """)
+
         train_loader = DataLoader(dataset=train_dataset, shuffle=True,**params)
         val_loader = DataLoader(dataset=val_dataset, shuffle=False,**params)
         test_loader = DataLoader(dataset=test_dataset, shuffle=False, **params)
@@ -92,7 +108,7 @@ class MLBuilder:
                              self.config.kernel_size, self.device, self.dropout_rate, int(self.step))
         model.to(self.device)
         criterion = RMSELoss()
-        opt_params = {'lr': 0.001, 
+        opt_params = {'lr': 0.0001, 
                       'alpha': 0.9, 
                       'eps': 1e-6}
         optimizer = torch.optim.RMSprop(model.parameters(), **opt_params)
