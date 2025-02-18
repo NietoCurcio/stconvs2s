@@ -150,8 +150,8 @@ class Util:
 
             for t in range(seq_len):
                 plot_single_axis(inputs[channel, t, :, :], axes[0, t], f"T{t}")
-                plot_single_axis(output[channel, t, :, :], axes[1, t], f"T{t}")
-                plot_single_axis(target[target_channel, t, :, :], axes[2, t], f"T{t}")
+                plot_single_axis(output[channel, 0, :, :], axes[1, t], f"T{t}")
+                plot_single_axis(target[target_channel, 0, :, :], axes[2, t], f"T{t}")
 
             row_labels = ["Input", "Prediction", "Target"]
             for row, label in enumerate(row_labels):
@@ -192,11 +192,11 @@ class Util:
             axes[channel, 1].set_title("Input")
             # fig.colorbar(im1, ax=axes[channel, 1], orientation="vertical")
 
-            _ = axes[channel, 2].imshow(output[channel, timestep], aspect="auto", cmap="viridis")
+            _ = axes[channel, 2].imshow(output[channel, 0], aspect="auto", cmap="viridis")
             axes[channel, 2].set_title("Prediction")
             # fig.colorbar(im2, ax=axes[channel, 2], orientation="vertical")
 
-            _ = axes[channel, 3].imshow(target[target_channel, timestep], aspect="auto", cmap="viridis")
+            _ = axes[channel, 3].imshow(target[target_channel, 0], aspect="auto", cmap="viridis")
             axes[channel, 3].set_title("Target")
             # fig.colorbar(im3, ax=axes[channel, 3], orientation="vertical")
             # break

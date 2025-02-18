@@ -51,6 +51,26 @@ class Trainer:
             output = self.model(inputs)
             if is_chirps:
                 output = mask_land * output
+            
+            # shape batch x channel x time x latitude x longitude
+            # print(f"output.shape before slicing: {output.shape}")
+            # print(f"target.shape before slicing: {target.shape}")
+
+            # slice to get only the latest time step
+            # output = output[:,:,:-1,:,:]
+            # target = target[:,:,:-1,:,:]
+            # a = tensor[:, :, -1, :, :]
+            # slice keeping the time dimension
+            # a = tensor[:, :, -1:, :, :]
+            output = output[:, :, -1:, :, :]
+            target = target[:, :, -1:, :, :]
+            # without the time dimension:
+            # output = output[:, :, -1, :, :]
+            # target = target[:, :, -1, :, :]
+            # print(f"output.shape after slicing: {output.shape}")
+            # print(f"target.shape after slicing: {target.shape}")
+            # exit(0)
+
             loss = self.loss_fn(output, target)
             # clear previous gradients 
             self.optimizer.zero_grad()
@@ -123,6 +143,10 @@ class Evaluator:
                 output = self.model(inputs)
                 if is_chirps:
                     output = mask_land * output    
+
+                output = output[:, :, -1:, :, :]
+                target = target[:, :, -1:, :, :]    
+            
                 rmse_loss = self.loss_fn(output, target)
                 mae_loss = F.l1_loss(output, target)
                 cumulative_rmse += rmse_loss.item()
@@ -130,7 +154,7 @@ class Evaluator:
                 
                 if is_test:
                     #metric per observation (lat x lon) at each time step (t) 
-                    for i in range(self.step):
+                    for i in range(1):
                         output_observation = output[:,:,i,:,:]
                         target_observation = target[:,:,i,:,:]
                         rmse_loss_obs = self.loss_fn(output_observation,target_observation)
