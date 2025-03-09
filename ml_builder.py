@@ -49,6 +49,12 @@ class MLBuilder:
         if (self.config.small_dataset):
             ds = ds[dict(sample=slice(0,3))]
 
+        precipitation_x = ds.x.sel(channel=0)
+        ds["x"].loc[{"channel": 0}] = np.log1p(precipitation_x)
+
+        precipitation_y = ds.y.sel(channel=0)
+        ds["y"].loc[{"channel": 0}] = np.log1p(precipitation_y)
+
         train_dataset = NetCDFDataset(ds, test_split=test_split, 
                                       validation_split=validation_split)
         val_dataset   = NetCDFDataset(ds, test_split=test_split, 
