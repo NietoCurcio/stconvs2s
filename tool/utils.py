@@ -152,7 +152,7 @@ class Util:
 
             for t in range(seq_len):
                 plot_single_axis(inputs[channel, t, :, :], axes[0, t], f"T{t}")
-                plot_single_axis(output[channel, t, :, :], axes[1, t], f"T{t}")
+                plot_single_axis(output[target_channel, t, :, :], axes[1, t], f"T{t}")
                 plot_single_axis(target[target_channel, t, :, :], axes[2, t], f"T{t}")
 
             row_labels = ["Input", "Prediction", "Target"]
@@ -194,7 +194,7 @@ class Util:
             axes[channel, 1].set_title("Input")
             # fig.colorbar(im1, ax=axes[channel, 1], orientation="vertical")
 
-            _ = axes[channel, 2].imshow(output[channel, timestep], aspect="auto", cmap="viridis")
+            _ = axes[channel, 2].imshow(output[target_channel, timestep], aspect="auto", cmap="viridis")
             axes[channel, 2].set_title("Prediction")
             # fig.colorbar(im2, ax=axes[channel, 2], orientation="vertical")
 
