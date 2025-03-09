@@ -12,6 +12,8 @@ import torch
 
 def get_arguments():
     parser = arg.ArgumentParser()
+    parser.add_argument('-r', '--run_name', default="full-dataset")
+    parser.add_argument('-dsp', '--dataset_path', default=None)
     parser.add_argument('-v', '--version', default=0)
     parser.add_argument('-i', '--iteration', type=int, default=3)
     parser.add_argument('-e', '--epoch', type=int, default=80)

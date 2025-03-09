@@ -26,7 +26,15 @@ class MLBuilder:
         
         self.config = config
         self.device = device
-        self.dataset_type = 'small-dataset' if (self.config.small_dataset) else 'full-dataset'
+
+
+        # full-dataset_200epochs_0.0001LR_1channeltarget_2011-1_2024-10_websirenesandera5+inmet+alertario_19features-NO-OVERLAPPING-dropout0.25
+
+        # self.dataset_type = 'small-dataset' if (self.config.small_dataset) else 'full-dataset'
+
+        self.dataset_type = 'small-dataset' if (self.config.small_dataset) else config.run_name
+        os.environ["run_name"] = self.dataset_type
+
         self.step = str(config.step)
         self.dataset_name, self.dataset_file = self.__get_dataset_file()
         self.dropout_rate = self.__get_dropout_rate()
@@ -193,13 +201,43 @@ class MLBuilder:
     def __get_dataset_file(self):
         dataset_file, dataset_name = None, None
         if (self.config.chirps):
-            dataset_file = 'data/output_dataset.nc'
+            # data/output_dataset_2011-01_2024-10.nc IS ONLY WEBSIRENES OKAY? I renamed the file to output_dataset_websirenes_2011-01_2024-10.nc
+            # dataset_file = 'data/output_dataset_2011-01_2024-10.nc'
             # dataset_file = 'data/output_dataset_brinquedo.nc'
+            # dataset_file = "data/output_dataset_websirenes+inmet_2011-01_2024-10.nc"
+            # dataset_file = "data/output_dataset_websirenes+inmet+alertario_2011-01_2024-10.nc"
+
+            # dataset_file = "data/output_dataset_era5_only_2011-01_2024-10.nc"
+            # dataset_file = "data/output_dataset_websirenes_2011-01_2024-10.nc"
+            # dataset_file = "data/output_dataset_websirenes+inmet_2011-01_2024-10.nc"
+            # dataset_file = "data/output_dataset_websirenes+inmet+alertario_2011-01_2024-10.nc"
+            # dataset_file = "data/output_dataset_websirenes+inmet+alertario_2011-01_2024-10_no_overlapping.nc"
+            # dataset_file = "data/output_dataset_alertario_only_2011-01_2024-10.nc"
+            # dataset_file = "data/output_dataset_inmet_only_2011-01_2024-10.nc"
+            # dataset_file = "data/output_dataset_websirenes+alertario_2011-01_2024-10.nc"
+            # dataset_file = "data/output_dataset_inmet+alertario_2011-01_2024-10.nc"
             dataset_name = 'chirps'
         else:
-            dataset_file = 'data/output_dataset.nc'
+            # dataset_file = 'data/output_dataset_2011-01_2024-10.nc'
             # dataset_file = 'data/output_dataset_brinquedo.nc'
+            # dataset_file = "data/output_dataset_websirenes+inmet_2011-01_2024-10.nc"
+            # dataset_file = "data/output_dataset_websirenes+inmet+alertario_2011-01_2024-10.nc"
+
+            # dataset_file = "data/output_dataset_era5_only_2011-01_2024-10.nc"
+            # dataset_file = "data/output_dataset_websirenes_2011-01_2024-10.nc"
+            # dataset_file = "data/output_dataset_websirenes+inmet_2011-01_2024-10.nc"
+            # dataset_file = "data/output_dataset_websirenes+inmet+alertario_2011-01_2024-10.nc"
+            # dataset_file = "data/output_dataset_websirenes+inmet+alertario_2011-01_2024-10_no_overlapping.nc"
+            # dataset_file = "data/output_dataset_alertario_only_2011-01_2024-10.nc"
+            # dataset_file = "data/output_dataset_inmet_only_2011-01_2024-10.nc"
+            # dataset_file = "data/output_dataset_websirenes+alertario_2011-01_2024-10.nc"
+            # dataset_file = "data/output_dataset_inmet+alertario_2011-01_2024-10.nc"
             dataset_name = 'cfsr'
+
+        dataset_file = self.config.dataset_path
+        if dataset_file is None:
+            print("deu ruim no dataset felipe, passar -dsp com o path")
+            exit(0)
         
         return dataset_name, dataset_file
         

@@ -27,6 +27,7 @@ class NetCDFDataset(Dataset):
         only_channel_0 = data.y.values[:,:,:,:,:1]
         # exit(0)
 
+        # self.y = torch.from_numpy(data.y.values).float().permute(0, 4, 1, 2, 3)
         self.y = torch.from_numpy(only_channel_0).float().permute(0, 4, 1, 2, 3)
         
         if self.is_2d_model:

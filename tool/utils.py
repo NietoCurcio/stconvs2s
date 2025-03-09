@@ -115,7 +115,9 @@ class Util:
             "w1000": "Vertical velocity at 1000 hPa",
         }
 
-        os.makedirs(f"./grid_figures/iteration_{iteration_number}", exist_ok=True)
+        run_name = os.getenv("run_name")
+
+        os.makedirs(f"./grid_figures_{run_name}/iteration_{iteration_number}", exist_ok=True)
         
         # num_rows = len(features_tuple)
         # num_cols = 4
@@ -165,7 +167,7 @@ class Util:
 
             plt.suptitle(f"feature_name (sample={sample}, channel={channel})", fontsize=16)
             plt.tight_layout(rect=[0.05, 0.03, 1, 0.95])
-            plt.savefig(f"./grid_figures/iteration_{iteration_number}/{key}_figure.png", dpi=600)
+            plt.savefig(f"./grid_figures_{run_name}/iteration_{iteration_number}/{key}_figure.png", dpi=600)
             plt.close(fig)
             # break
         
@@ -202,7 +204,7 @@ class Util:
             # break
 
         plt.tight_layout()
-        plt.savefig(f"./grid_figures/iteration_{iteration_number}/full_grid_figure.png", dpi=300)
+        plt.savefig(f"./grid_figures_{run_name}/iteration_{iteration_number}/full_grid_figure.png", dpi=300)
         plt.show()
 
     def get_checkpoint_filename(self):
