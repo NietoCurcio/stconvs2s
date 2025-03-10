@@ -10,3 +10,10 @@ class RMSELoss(nn.Module):
     def forward(self,yhat,y):
         loss = torch.sqrt(self.mse(yhat,y) + self.eps)
         return loss
+
+class MAELoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, y_pred, y_true):
+        return torch.mean(torch.abs(y_true - y_pred))
