@@ -19,7 +19,15 @@ class NetCDFDataset(Dataset):
         else:
             data = sr.split_train(dataset)
         
+        LATS_INDEXES = [4]
+        LONS_INDEXES = [5, 6, 7]
         # data format batch x channel x time x latitude x longitude
+        data = data.isel(lat=LATS_INDEXES, lon=LONS_INDEXES)
+        assert data.x.shape[2] == 1
+        assert data.x.shape[3] == 3
+        assert data.y.shape[2] == 1
+        assert data.y.shape[3] == 3
+
         self.X = torch.from_numpy(data.x.values).float().permute(0, 4, 1, 2, 3)
         self.X = self.X[:,:,:5,:,:]
 
