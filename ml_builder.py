@@ -11,13 +11,13 @@ from model.baselines import *
 from model.ablation import *
  
 from tool.train_evaluate import Trainer, Evaluator
-from tool.dataset import NetCDFDataset
+from tool.dataset import NetCDFDataset, compute_sample_weights
 from tool.loss import RMSELoss
 from tool.utils import Util
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from torch import optim
 
 class MLBuilder:
@@ -61,6 +61,10 @@ class MLBuilder:
                                       validation_split=validation_split, is_validation=True)
         test_dataset  = NetCDFDataset(ds, test_split=test_split, 
                                       validation_split=validation_split, is_test=True)
+        
+        train_sample_weights = compute_sample_weights(train_dataset.y)
+        train_sampler = WeightedRandomSampler(train_sample_weights, num_samples=len(train_sample_weights), replacement=True)
+
         if (self.config.verbose):
             print('[X_train] Shape:', train_dataset.X.shape)
             print('[y_train] Shape:', train_dataset.y.shape)
@@ -90,7 +94,7 @@ class MLBuilder:
             {reset_color}
         """)
 
-        train_loader = DataLoader(dataset=train_dataset, shuffle=True,**params)
+        train_loader = DataLoader(dataset=train_dataset, sampler=train_sampler,**params)
         val_loader = DataLoader(dataset=val_dataset, shuffle=False,**params)
         test_loader = DataLoader(dataset=test_dataset, shuffle=False, **params)
         

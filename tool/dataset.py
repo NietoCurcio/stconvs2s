@@ -1,9 +1,14 @@
+from pprint import pprint
+
 import xarray as xr
 import numpy as np
 
 import torch
-from torch.utils.data import Dataset
 
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
+from tqdm import tqdm
 class NetCDFDataset(Dataset):
 
     def __init__(self, dataset, test_split=0, validation_split=0, is_validation=False, is_test=False, is_2d_model=False):
@@ -67,3 +72,138 @@ class Splitter():
                 return dataset[dict(sample=slice(0,split))]
             else:
                 return dataset[dict(sample=slice(split, None))]
+
+def compute_sample_weights(labels, threshold=50):
+    labels_np = labels.numpy()
+    binary_labels = (labels_np >= threshold).any(axis=(1,2,3,4)).astype(int)
+    print("Extreme vs non-extreme counts:", np.bincount(binary_labels))
+    # [52959   729] = 52959 + 729 = 53688 = total train samples
+    # assert sum(binary_labels) to be equals to total train samples
+    class_counts = np.bincount(binary_labels)
+    class_weights = 1.0 / class_counts
+    sample_weights = class_weights[binary_labels]
+    return sample_weights
+
+def _get_bar_color(value):
+    if 0 <= value < 5:
+        return "lightblue"
+    elif 5 <= value < 25:
+        return "lightgreen"
+    elif 25 <= value < 50:
+        return "gold"
+    elif value >= 50:
+        return "tomato"
+    return "lightgray"
+
+def _get_fig_ax():
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.set_xlabel("Precipitação (mm)", fontsize=10)
+    ax.set_ylabel("Frequência", fontsize=10)
+    ax.legend(
+        handles=[
+            mpatches.Patch(color="lightblue", label="Light (0, 5)"),
+            mpatches.Patch(color="lightgreen", label="Moderate [5, 25)"),
+            mpatches.Patch(color="gold", label="Strong [25, 50)"),
+            mpatches.Patch(color="tomato", label="Extreme [50, ∞)"),
+        ],
+        title="Precipitation Levels",
+        fontsize=8,
+        title_fontsize=9,
+    )
+    return fig, ax
+
+def plot_histogram(data_flatten, log=True):
+    fig, ax = _get_fig_ax()
+    binwidth = 5
+    bins = np.arange(0, data_flatten.max() + binwidth, binwidth)
+    n, bins, patches = ax.hist(data_flatten, bins=bins, edgecolor="black", log=log)
+    for patch, value in zip(patches, bins):
+        patch.set_facecolor(_get_bar_color(value))
+    return fig, ax
+
+if __name__ == "__main__":
+    # from rafaela-model workdir:
+    # python -m rafaela_model.tool.dataset
+    LATS_INDEXES = slice(4, 5)
+    LONS_INDEXES = slice(5, 8)
+
+    DATASET_PATH = "/home/felipe/rafaela-model/rafaela_model/models_evaluation/no_overlapping_output_dataset_websirenes_inmet_alertario_2011-01_2024-10.nc"
+    ds = xr.open_dataset(DATASET_PATH)
+
+    validation_split = 0.2
+    test_split = 0.2
+
+    train_dataset = NetCDFDataset(ds, test_split=test_split, validation_split=validation_split)
+    val_dataset   = NetCDFDataset(ds, test_split=test_split, validation_split=validation_split, is_validation=True)
+    test_dataset  = NetCDFDataset(ds, test_split=test_split, validation_split=validation_split, is_test=True)
+
+    print('[X_train] Shape:', train_dataset.X.shape)
+    print('[y_train] Shape:', train_dataset.y.shape)
+    print('[X_val] Shape:', val_dataset.X.shape)
+    print('[y_val] Shape:', val_dataset.y.shape)
+    print('[X_test] Shape:', test_dataset.X.shape)
+    print('[y_test] Shape:', test_dataset.y.shape)
+    print(f'''
+        Train on {len(train_dataset)} samples
+        Validate on {len(val_dataset)} samples
+        Test on {len(test_dataset)} samples
+    ''')
+
+    test_dataset_values_greater_than_50 = (test_dataset.y >= 50).sum()
+    print("test_dataset_values_greater_than_50:", test_dataset_values_greater_than_50)
+
+    fig, ax = plot_histogram(
+        test_dataset.X[:, 0, :, LATS_INDEXES, LONS_INDEXES].numpy().flatten(), log=True
+    )
+    plt.show()
+    
+    train_sample_weights = compute_sample_weights(train_dataset.y)
+    train_sampler = WeightedRandomSampler(train_sample_weights, num_samples=len(train_sample_weights), replacement=True)
+
+    def __init_seed(self, number=42):
+        seed = (number * 10) + 1000
+        np.random.seed(seed)
+
+    params = {'batch_size': 15, 
+                  'num_workers': 4, 
+                  'worker_init_fn': __init_seed}
+
+    train_loader = DataLoader(dataset=train_dataset, sampler=train_sampler, **params)
+    val_loader = DataLoader(dataset=val_dataset, shuffle=False,**params)
+    test_loader = DataLoader(dataset=test_dataset, shuffle=False, **params)
+
+    train_loader_without_sampler = DataLoader(dataset=train_dataset, shuffle=True, **params)
+    
+    total_extreme_values_without_sampler = 0
+    for X_batch, y_batch in tqdm(train_loader_without_sampler):
+        total_extreme_values_without_sampler += (y_batch >= 50).any(dim=(1,2,3,4)).sum()
+
+    total_extreme_values_with_sampler = 0
+    for X_batch, y_batch in tqdm(train_loader):
+        total_extreme_values_with_sampler += (y_batch >= 50).any(dim=(1,2,3,4)).sum()
+    
+    total_extreme_values_without_sampler_test = 0
+    total_values_without_sampler_test = 0
+    for X_batch, y_batch in tqdm(test_loader):
+        # y_channel_0 = y_batch[:, 0, :, LATS_INDEXES, LONS_INDEXES] # not filtering cells
+        y_channel_0 = y_batch[:, 0, :, :, :]
+        # lead_time = 0
+        # y_channel_0 = y_channel_0[:, slice(lead_time, lead_time + 1), :, :] # not filtering lead time
+        y_channel_0 = y_channel_0[:, :, :, :]
+        total_extreme_values_without_sampler_test += (y_channel_0 >= 50).any(dim=(1,2,3)).sum()
+        total_values_without_sampler_test += (y_channel_0 >= 0).any(dim=(1,2,3)).sum()
+        
+
+    pprint({
+        "total_extreme_values_with_sampler": total_extreme_values_with_sampler,
+        "total_extreme_values_without_sampler": total_extreme_values_without_sampler,
+        "total_extreme_values_without_sampler_test": total_extreme_values_without_sampler_test,
+        "total_values_without_sampler_test": total_values_without_sampler_test
+    })
+
+    pprint({
+        "total_extreme_values_with_sampler": total_extreme_values_with_sampler / len(train_dataset) * 100,
+        "total_extreme_values_without_sampler": total_extreme_values_without_sampler / len(train_dataset) * 100,
+        "total_extreme_values_without_sampler_test": total_extreme_values_without_sampler_test / len(test_dataset) * 100,
+        "total_values_without_sampler_test": total_values_without_sampler_test / len(test_dataset) * 100
+    })
