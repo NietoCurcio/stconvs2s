@@ -73,7 +73,9 @@ class Splitter():
             else:
                 return dataset[dict(sample=slice(split, None))]
 
-def compute_sample_weights(labels, threshold=50):
+extreme_threshold = np.log1p(50)
+
+def compute_sample_weights(labels, threshold=extreme_threshold):
     labels_np = labels.numpy()
     binary_labels = (labels_np >= threshold).any(axis=(1,2,3,4)).astype(int)
     print("Extreme vs non-extreme counts:", np.bincount(binary_labels))
@@ -133,6 +135,13 @@ if __name__ == "__main__":
     validation_split = 0.2
     test_split = 0.2
 
+    # added
+    precipitation_x = ds.x.sel(channel=0)
+    ds["x"].loc[{"channel": 0}] = np.log1p(precipitation_x)
+
+    precipitation_y = ds.y.sel(channel=0)
+    ds["y"].loc[{"channel": 0}] = np.log1p(precipitation_y)
+
     train_dataset = NetCDFDataset(ds, test_split=test_split, validation_split=validation_split)
     val_dataset   = NetCDFDataset(ds, test_split=test_split, validation_split=validation_split, is_validation=True)
     test_dataset  = NetCDFDataset(ds, test_split=test_split, validation_split=validation_split, is_test=True)
@@ -149,12 +158,13 @@ if __name__ == "__main__":
         Test on {len(test_dataset)} samples
     ''')
 
-    test_dataset_values_greater_than_50 = (test_dataset.y >= 50).sum()
+    test_dataset_values_greater_than_50 = (test_dataset.y >= extreme_threshold).sum()
     print("test_dataset_values_greater_than_50:", test_dataset_values_greater_than_50)
 
-    fig, ax = plot_histogram(
-        test_dataset.X[:, 0, :, LATS_INDEXES, LONS_INDEXES].numpy().flatten(), log=True
-    )
+    log_data = test_dataset.y[:, 0, :, LATS_INDEXES, LONS_INDEXES].numpy().flatten()
+    data_reverted = np.expm1(log_data)
+    fig, ax = plot_histogram(data_reverted, log=True)
+
     plt.show()
     
     train_sample_weights = compute_sample_weights(train_dataset.y)
@@ -176,11 +186,11 @@ if __name__ == "__main__":
     
     total_extreme_values_without_sampler = 0
     for X_batch, y_batch in tqdm(train_loader_without_sampler):
-        total_extreme_values_without_sampler += (y_batch >= 50).any(dim=(1,2,3,4)).sum()
+        total_extreme_values_without_sampler += (y_batch >= extreme_threshold).any(dim=(1,2,3,4)).sum()
 
     total_extreme_values_with_sampler = 0
     for X_batch, y_batch in tqdm(train_loader):
-        total_extreme_values_with_sampler += (y_batch >= 50).any(dim=(1,2,3,4)).sum()
+        total_extreme_values_with_sampler += (y_batch >= extreme_threshold).any(dim=(1,2,3,4)).sum()
     
     total_extreme_values_without_sampler_test = 0
     total_values_without_sampler_test = 0
@@ -190,7 +200,7 @@ if __name__ == "__main__":
         # lead_time = 0
         # y_channel_0 = y_channel_0[:, slice(lead_time, lead_time + 1), :, :] # not filtering lead time
         y_channel_0 = y_channel_0[:, :, :, :]
-        total_extreme_values_without_sampler_test += (y_channel_0 >= 50).any(dim=(1,2,3)).sum()
+        total_extreme_values_without_sampler_test += (y_channel_0 >= extreme_threshold).any(dim=(1,2,3)).sum()
         total_values_without_sampler_test += (y_channel_0 >= 0).any(dim=(1,2,3)).sum()
         
 
