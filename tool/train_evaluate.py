@@ -130,15 +130,34 @@ class Evaluator:
             "50-inf": {"0-5": 0, "5-25": 0, "25-50": 0, "50-inf": 0},
         }
 
+        # level_0_5_true = 0
+        # level_5_25_true = 0
+        # level_25_50_true = 0
+        # level_50_inf_true = 0
+
         with torch.no_grad(): 
+            # print(f"TOTAL BATCHES: {loader_size}")
+            
+            # print("self.data_loader.dataset.y.shape", self.data_loader.dataset.y.shape)
+            # torch.Size([100, 1, 5, 9, 11])
+
             for batch_i, (inputs, target) in enumerate(self.data_loader):
+                # print(inputs.shape) # torch.Size([3, 19, 5, 9, 11]) batch_size = 3
+                # print(target.shape) # torch.Size([3, 1, 5, 9, 11]) batch_size = 3
                 inputs, target = inputs.to(self.device), target.to(self.device)
 
                 if epoch % 40 == 0 or epoch == 1:
-                    mask_0_5 = target < weak_threshold
-                    mask_5_25 = (target >= weak_threshold) & (target < moderate_threshold)
-                    mask_25_50 = (target >= moderate_threshold) & (target < heavy_threshold)
-                    mask_50_inf = target >= heavy_threshold
+                    target_squeeze = target.squeeze(1)
+
+                    mask_0_5 = target_squeeze < weak_threshold
+                    mask_5_25 = (target_squeeze >= weak_threshold) & (target_squeeze < moderate_threshold)
+                    mask_25_50 = (target_squeeze >= moderate_threshold) & (target_squeeze < heavy_threshold)
+                    mask_50_inf = target_squeeze >= heavy_threshold
+
+                    # level_0_5_true   += mask_0_5.sum().item()
+                    # level_5_25_true  += mask_5_25.sum().item()
+                    # level_25_50_true += mask_25_50.sum().item()
+                    # level_50_inf_true+= mask_50_inf.sum().item()
 
                 output = self.model(inputs)
                 if is_chirps:
@@ -159,9 +178,8 @@ class Evaluator:
                         observation_mae[i] += mae_loss_obs.item()
                 
                 if epoch % 40 == 0 or epoch == 1:
-                    # print(output.shape)
-                    # print(output[:, 0, :, :, :].shape)
-                    # exit(0)
+                    # print(output.shape) # torch.Size([3, 1, 5, 9, 11])
+                    # print(output[:, 0, :, :, :].shape) # torch.Size([3, 5, 9, 11])
                     y_pred = output[:, 0, :, :, :]
 
                     conf_matrix["0-5"]["0-5"] += (
@@ -228,7 +246,20 @@ class Evaluator:
         if epoch % 40 == 0 or epoch == 1:
             confusion_df = pd.DataFrame(conf_matrix).T
             print(f"\nConfusion matrix at epoch {epoch}")
+            # print(f"batch_i: {batch_i}")
             print(confusion_df)
+            # print({
+            #     "level_0_5_true": level_0_5_true,
+            #     "level_5_25_true": level_5_25_true,
+            #     "level_25_50_true": level_25_50_true,
+            #     "level_50_inf_true": level_50_inf_true,
+            # })
+            # print(f"Sum of true values: {level_0_5_true + level_5_25_true + level_25_50_true + level_50_inf_true}")
+
+            # print(f"Sum of confusion_df values: {confusion_df.sum().sum()}")
+            # print(f"Sum of predicted values: {sum(confusion_df.sum(axis=1))}")
+            # print(f"Sum of conf_matrix: {confusion_df.sum().sum()}")
+            # print(f"level_50_inf_true: {level_50_inf_true}")
                 
         return cumulative_rmse/loader_size,cumulative_mae/loader_size
         
