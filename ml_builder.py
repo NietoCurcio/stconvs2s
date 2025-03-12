@@ -258,4 +258,4 @@ class MLBuilder:
         else:
             dropout_rate = 0.
 
-        return 0.5
+        return self.config.dropout
