@@ -19,6 +19,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch import optim
+from sklearn.preprocessing import MinMaxScaler
 
 class MLBuilder:
 
@@ -47,13 +48,22 @@ class MLBuilder:
         # Loading the dataset
         ds = xr.open_mfdataset(self.dataset_file)
         if (self.config.small_dataset):
-            ds = ds[dict(sample=slice(0,3))]
+            ds = ds[dict(sample=slice(0,500))]
 
         precipitation_x = ds.x.sel(channel=0)
         ds["x"].loc[{"channel": 0}] = np.log1p(precipitation_x)
 
         precipitation_y = ds.y.sel(channel=0)
         ds["y"].loc[{"channel": 0}] = np.log1p(precipitation_y)
+
+        for channel in ds.x.channel.values[1:]:
+            channel_data = ds.x.sel(channel=channel).values
+
+            original_shape = channel_data.shape
+            data_reshaped = channel_data.reshape(-1, 1)
+            scaled = MinMaxScaler().fit_transform(data_reshaped)
+            scaled = scaled.reshape(original_shape)
+            ds["x"].loc[{"channel": channel}] = scaled
 
         train_dataset = NetCDFDataset(ds, test_split=test_split, 
                                       validation_split=validation_split)
@@ -122,9 +132,10 @@ class MLBuilder:
                              self.config.kernel_size, self.device, self.dropout_rate, int(self.step))
         model.to(self.device)
         criterion = MAELoss()
-        opt_params = {'lr': 0.0001, 
+        opt_params = {'lr': 0.00001, 
                       'alpha': 0.9, 
                       'eps': 1e-6}
+        print(f"opt_params", opt_params)
         optimizer = torch.optim.RMSprop(model.parameters(), **opt_params)
         util = Util(self.config.model, self.dataset_type, self.config.version, self.filename_prefix)
         
@@ -257,4 +268,4 @@ class MLBuilder:
         else:
             dropout_rate = 0.
 
-        return dropout_rate
+        return 0.5
