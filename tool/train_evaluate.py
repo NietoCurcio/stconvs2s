@@ -172,7 +172,9 @@ class Evaluator:
                     for i in range(self.step):
                         output_observation = output[:,:,i,:,:]
                         target_observation = target[:,:,i,:,:]
-                        rmse_loss_obs = self.loss_fn(output_observation,target_observation)
+                        rmse_loss_obs = self.loss_fn(
+                            output_observation.unsqueeze(2), target_observation.unsqueeze(2)
+                        )
                         mae_loss_obs = F.l1_loss(output_observation, target_observation)
                         observation_rmse[i] += rmse_loss_obs.item()
                         observation_mae[i] += mae_loss_obs.item()
@@ -260,7 +262,6 @@ class Evaluator:
             # print(f"Sum of predicted values: {sum(confusion_df.sum(axis=1))}")
             # print(f"Sum of conf_matrix: {confusion_df.sum().sum()}")
             # print(f"level_50_inf_true: {level_50_inf_true}")
-                
         return cumulative_rmse/loader_size,cumulative_mae/loader_size
         
         
