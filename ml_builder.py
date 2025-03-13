@@ -12,7 +12,7 @@ from model.ablation import *
  
 from tool.train_evaluate import Trainer, Evaluator
 from tool.dataset import NetCDFDataset
-from tool.loss import RMSELoss, MAELoss
+from tool.loss import EPL
 from tool.utils import Util
 
 import torch
@@ -54,6 +54,18 @@ class MLBuilder:
         ds["x"].loc[{"channel": 0}] = np.log1p(precipitation_x)
 
         precipitation_y = ds.y.sel(channel=0)
+        print(f"Min precipitation_y before log: {precipitation_y.min().values}")
+        print(f"(precipitation_y >= 0).all(): {((precipitation_y >= 0).all().values)}")
+
+        # nparray of precipitation_y:
+        # precipitation_y_np = np.log1p(precipitation_y).values
+        # precipitation_y_np = precipitation_y_np.tolist()
+        # import json
+        # with open("array2.json", "w") as json_file:
+        #     json.dump(precipitation_y_np, json_file)
+        # exit(0)
+
+        assert (precipitation_y >= 0).all(), "Found negative values in precipitation_y"
         ds["y"].loc[{"channel": 0}] = np.log1p(precipitation_y)
 
         for channel in ds.x.channel.values[1:]:
@@ -131,7 +143,9 @@ class MLBuilder:
         model = model_bulder(train_dataset.X.shape, self.config.num_layers, self.config.hidden_dim, 
                              self.config.kernel_size, self.device, self.dropout_rate, int(self.step))
         model.to(self.device)
-        criterion = MAELoss()
+        criterion = EPL()
+        criterion.set_gamma(0.1, precipitation_y)
+
         opt_params = {'lr': 0.00001, 
                       'alpha': 0.9, 
                       'eps': 1e-6}

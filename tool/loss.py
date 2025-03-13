@@ -49,3 +49,106 @@ class MAELoss(nn.Module):
         # exit(0)
         # return loss
         return torch.sum(weights * torch.abs(y_true - y_pred)) / torch.sum(weights)
+    
+class EPL(nn.Module):
+    """
+    Extreme Penalized Loss (EPL) for imbalanced time series prediction.
+    
+    Loss definition:
+        f(x) = { 
+                  x^2,                             if y_true < gamma, 
+                  exp(-x) - 1,                     if y_true >= gamma and x < 0,
+                  exp(x / lambda_) - 1,              if y_true >= gamma and x >= 0,
+                }
+    where:
+      - x = y_pred - y_true,
+      - gamma is the threshold to decide extreme events,
+      - lambda_ controls the penalty strength for over-predicted extremes.
+    
+    Args:
+        gamma (float): Threshold value to decide extreme events.
+        lambda_ (float): Scaling parameter for over-predicted extreme events.
+                         Typically set to n_out + 1.
+        reduction (str): Specifies the reduction: 'mean' | 'sum' | 'none'.
+    """
+    def __init__(self, gamma=None, lambda_=6.0, reduction='mean'):
+        super(EPL, self).__init__()
+        self.gamma = gamma  # may be set later using set_gamma method
+        self.lambda_ = lambda_
+        self.reduction = reduction
+        print(f"EP Loss: gamma={gamma}, lambda_={lambda_}, reduction={reduction}")
+
+    def forward(self, y_pred, y_true):
+        if self.gamma is None:
+            raise ValueError("Gamma is not set. Please call set_gamma() before using the loss.")
+            
+        # Compute the error (difference between prediction and true value)
+        error = y_pred - y_true
+        
+        # For normal events: when ground-truth is below gamma, use squared error.
+        normal_loss = error ** 2
+        
+        # Extreme events: where ground-truth is >= gamma
+        extreme_mask = (y_true >= self.gamma)
+        
+        # Initialize loss tensor for extreme events.
+        extreme_loss = torch.zeros_like(error)
+        
+        # Under-prediction: error < 0
+        under_mask = extreme_mask & (error < 0)
+        # Over-prediction: error >= 0
+        over_mask = extreme_mask & (error >= 0)
+        
+        # Apply exponential penalty for extreme events.
+        extreme_loss[under_mask] = torch.exp(-error[under_mask]) - 1
+        extreme_loss[over_mask] = torch.exp(error[over_mask] / self.lambda_) - 1
+        
+        # Combine losses: use extreme_loss for extreme events, normal_loss otherwise.
+        loss = torch.where(extreme_mask, extreme_loss, normal_loss)
+        
+        # Apply reduction (mean, sum, or none)
+        if self.reduction == 'mean':
+            return loss.mean()
+        elif self.reduction == 'sum':
+            return loss.sum()
+        else:
+            return loss
+
+    def set_gamma(self, bin_size, data):
+        """
+        Computes gamma from the provided data using a histogram-based method.
+        
+        Args:
+            bin_size (float): The size of each bin in the histogram.
+            data (array-like): The dataset (assumed to be 1D and continuous).
+        
+        This method sets self.gamma based on the following logic:
+          - It creates a histogram of the data.
+          - It calculates the ratio of counts in each bin.
+          - It selects the first bin where the ratio is less than 1/num_bins,
+            the previous bin ratio is >= 1/num_bins, and (if possible) the next
+            bin ratio is also below 1/num_bins.
+        """
+        data = np.asarray(data)
+        min_val = data.min()
+        max_val = data.max()
+        bins_num = int((max_val - min_val) / bin_size) + 1
+        
+        counts, bin_edges = np.histogram(data, bins=bins_num)
+        bin_ratios = counts / counts.sum()
+        gamma = None
+        
+        # Iterate from 1 to bins_num - 1 to safely access i+1.
+        for i in range(1, bins_num - 1):
+            if bin_ratios[i] < 1 / bins_num and bin_ratios[i - 1] >= 1 / bins_num and bin_ratios[i + 1] < 1 / bins_num:
+                gamma = bin_edges[i]
+                break
+                
+        if gamma is None:
+            raise ValueError("Unable to determine gamma from the data using the given bin_size.")
+            
+        self.gamma = round(gamma, 1)
+        print(f"EPL Gamma set to {self.gamma} (before log transformation)")
+        self.gamma = np.log1p(self.gamma)
+        print(f"EPL Gamma set to {self.gamma}")
+        return self.gamma
