@@ -22,41 +22,18 @@ from torch import optim
 
 def clean_precipitation_data(data, property, threshold=0.01, extreme_threshold=150.0, verbose=True):
     # --- PART 1: Remove extreme precipitation values ---
-    # Find extreme values
     extreme_mask = data[:, :, :, :, 0] > extreme_threshold
-    
-    # Count and track extreme values
     total_extremes = extreme_mask.sum()
     max_extreme = 0
     if total_extremes > 0:
         max_extreme = data[:, :, :, :, 0][extreme_mask].max()
-    
-    # Replace extreme values with zero
     data[:, :, :, :, 0][extreme_mask] = 0
     
-    # --- PART 2: Clean spurious precipitation values ---
-    # Initialize counters for different timestep sections
-    total_changes_t0 = 0
-    max_changed_value_t0 = 0
-    
+    # --- PART 2: Clean only middle timesteps (T1, T2, T3) ---
     total_changes_middle = 0
     max_changed_value_middle = 0
     
-    total_changes_t4 = 0
-    max_changed_value_t4 = 0
-    
-    # Handle T0 (first timestep)
-    if data.shape[1] >= 3:  # Ensure we have at least 3 timesteps
-        mask_t0 = (data[:, 1, :, :, 0] == 0) & (data[:, 2, :, :, 0] == 0) & (data[:, 0, :, :, 0] > threshold)
-        
-        total_changes_t0 = mask_t0.sum()
-        
-        if total_changes_t0 > 0:
-            max_changed_value_t0 = data[:, 0, :, :, 0][mask_t0].max()
-        
-        data[:, 0, :, :, 0][mask_t0] = 0
-    
-    # Handle middle timesteps (T1, T2, T3)
+    # Only handle middle timesteps (T1, T2, T3)
     for t in range(1, data.shape[1] - 1):
         mask = (data[:, t-1, :, :, 0] == 0) & (data[:, t+1, :, :, 0] == 0) & (data[:, t, :, :, 0] > threshold)
         
@@ -69,38 +46,16 @@ def clean_precipitation_data(data, property, threshold=0.01, extreme_threshold=1
         
         data[:, t, :, :, 0][mask] = 0
     
-    # Handle T4 (last timestep)
-    if data.shape[1] >= 3:  # Ensure we have at least 3 timesteps
-        last_t = data.shape[1] - 1
-        mask_t4 = (data[:, last_t-1, :, :, 0] == 0) & (data[:, last_t-2, :, :, 0] == 0) & (data[:, last_t, :, :, 0] > threshold)
-        
-        total_changes_t4 = mask_t4.sum()
-        
-        if total_changes_t4 > 0:
-            max_changed_value_t4 = data[:, last_t, :, :, 0][mask_t4].max()
-        
-        data[:, last_t, :, :, 0][mask_t4] = 0
-    
-    # Calculate totals for spurious data removal
-    total_changes = total_changes_t0 + total_changes_middle + total_changes_t4
-    max_changed_value = max(max_changed_value_t0, max_changed_value_middle, max_changed_value_t4)
-    
     if verbose:
-        print(f"=== Extreme Precipitation Removal - {property} ===")
+        print(f"=== Extreme Precipitation Removal ({property}) ===")
         print(f"Total extreme values (>{extreme_threshold} mm/h) removed: {total_extremes}")
         print(f"Percentage of data removed: {100 * total_extremes / data.size:.6f}%")
         print(f"Maximum extreme value: {max_extreme}")
         
         print("\n=== Spurious Precipitation Removal ===")
-        print(f"Total spurious values removed: {total_changes}")
-        print(f"  T0: {total_changes_t0}")
-        print(f"  Middle (T1-T3): {total_changes_middle}")
-        print(f"  T4: {total_changes_t4}")
-        print(f"Percentage of data changed: {100 * total_changes / data.size:.4f}%")
-        print(f"Maximum value changed: {max_changed_value}")
-        print(f"  T0: {max_changed_value_t0}")
-        print(f"  Middle (T1-T3): {max_changed_value_middle}")
-        print(f"  T4: {max_changed_value_t4}")
+        print(f"Total spurious values removed: {total_changes_middle}")
+        print(f"Percentage of data changed: {100 * total_changes_middle / data.size:.4f}%")
+        print(f"Maximum value changed: {max_changed_value_middle}")
     
     return data
 
