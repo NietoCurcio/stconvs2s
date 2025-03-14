@@ -94,3 +94,97 @@ class EPLLossFirstLeadTime(nn.Module):
             return total_loss.mean()
         else:
             return torch.tensor(0.0, device=y_pred.device)
+
+class MultiClassTverskyLoss(nn.Module):
+    def __init__(self, alpha=0.3, beta=0.7, smooth=1e-6, class_weights=None, k=10.0):
+        """
+        Multi-class Tversky Loss for imbalanced precipitation prediction.
+
+        Classes (in log-space):
+            0: weak     < log1p(5)
+            1: moderate [log1p(5), log1p(25))
+            2: heavy    [log1p(25), log1p(50))
+            3: extreme  >= log1p(50)
+
+        Parameters:
+            alpha (float): Weight for false positives.
+            beta (float): Weight for false negatives.
+            smooth (float): Smoothing term.
+            class_weights (list or tensor): Weights for each class.
+            k (float): Steepness parameter for the soft one-hot encoding.
+        """
+        super(MultiClassTverskyLoss, self).__init__()
+        self.alpha = alpha
+        self.beta = beta
+        self.smooth = smooth
+        self.k = k
+        if class_weights is None:
+            self.class_weights = torch.tensor([1.0, 1.0, 1.0, 1.0])
+        else:
+            self.class_weights = torch.tensor(class_weights)
+
+    def forward(self, y_pred, y_true):
+        """
+        y_pred and y_true are assumed to be in log-space and have the same shape.
+        y_true is hard-encoded and y_pred is soft-encoded.
+        """
+        num_classes = 4
+        one_hot_true = self._hard_one_hot_encode(y_true, num_classes)
+        one_hot_pred = self._soft_one_hot_encode(y_pred, num_classes)
+        
+        total_loss = 0.0
+        total_weight = 0.0
+        for c in range(num_classes):
+            true_c = one_hot_true[:, c]
+            pred_c = one_hot_pred[:, c]
+            true_c_flat = true_c.contiguous().view(-1)
+            pred_c_flat = pred_c.contiguous().view(-1)
+            
+            TP = (pred_c_flat * true_c_flat).sum()
+            FP = (pred_c_flat * (1 - true_c_flat)).sum()
+            FN = ((1 - pred_c_flat) * true_c_flat).sum()
+            
+            tversky_index = (TP + self.smooth) / (TP + self.alpha * FP + self.beta * FN + self.smooth)
+            loss_c = 1 - tversky_index
+            weight = self.class_weights[c]
+            total_loss += weight * loss_c
+            total_weight += weight
+        
+        return total_loss / total_weight
+
+    def _hard_one_hot_encode(self, tensor, num_classes):
+        shape = list(tensor.shape)
+        one_hot = torch.zeros([shape[0], num_classes] + shape[1:], device=tensor.device)
+        
+        moderate = torch.log1p(torch.tensor(5.0, device=tensor.device)).item()
+        heavy = torch.log1p(torch.tensor(25.0, device=tensor.device)).item()
+        extreme = torch.log1p(torch.tensor(50.0, device=tensor.device)).item()
+        
+        mask0 = tensor < moderate
+        mask1 = (tensor >= moderate) & (tensor < heavy)
+        mask2 = (tensor >= heavy) & (tensor < extreme)
+        mask3 = tensor >= extreme
+        
+        one_hot[:, 0][mask0] = 1.0
+        one_hot[:, 1][mask1] = 1.0
+        one_hot[:, 2][mask2] = 1.0
+        one_hot[:, 3][mask3] = 1.0
+        
+        return one_hot
+
+    def _soft_one_hot_encode(self, tensor, num_classes):
+        # Define thresholds in log-space
+        moderate = torch.log1p(torch.tensor(5.0, device=tensor.device)).item()
+        heavy = torch.log1p(torch.tensor(25.0, device=tensor.device)).item()
+        extreme = torch.log1p(torch.tensor(50.0, device=tensor.device)).item()
+        
+        # Use sigmoids to get soft probabilities
+        p0 = 1 - torch.sigmoid(self.k * (tensor - moderate))
+        p1 = torch.sigmoid(self.k * (tensor - moderate)) - torch.sigmoid(self.k * (tensor - heavy))
+        p2 = torch.sigmoid(self.k * (tensor - heavy)) - torch.sigmoid(self.k * (tensor - extreme))
+        p3 = torch.sigmoid(self.k * (tensor - extreme))
+        
+        one_hot_soft = torch.stack([p0, p1, p2, p3], dim=1)
+        one_hot_soft = one_hot_soft / (one_hot_soft.sum(dim=1, keepdim=True) + 1e-8)
+        return one_hot_soft
+    

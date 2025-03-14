@@ -12,7 +12,7 @@ from model.ablation import *
  
 from tool.train_evaluate import Trainer, Evaluator
 from tool.dataset import NetCDFDataset
-from tool.loss import EPLLossFirstLeadTime
+from tool.loss import MultiClassTverskyLoss
 from tool.utils import Util
 
 import torch
@@ -143,7 +143,7 @@ class MLBuilder:
         model = model_bulder(train_dataset.X.shape, self.config.num_layers, self.config.hidden_dim, 
                              self.config.kernel_size, self.device, self.dropout_rate, int(self.step))
         model.to(self.device)
-        criterion = EPLLossFirstLeadTime()
+        criterion = MultiClassTverskyLoss(alpha=0.9, beta=0.1, class_weights=[1.0, 3.0, 8.0, 12.0])
 
         opt_params = {'lr': 0.0001, 
                       'alpha': 0.9, 
