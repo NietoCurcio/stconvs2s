@@ -20,6 +20,36 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch import optim
 
+def clean_precipitation_data(data, property, threshold=0.0, verbose=True):
+    total_changes = 0
+    max_changed_value = 0
+    
+    # T0
+    # T1 has t-1 and t+1
+    # T2 has t-1 and t+1
+    # T3 has t-1 and t+1
+    # T4
+    # range from [1, 4)
+    for t in range(1, data.shape[1] - 1):
+        mask = (data[:, t-1, :, :, 0] == 0) & (data[:, t+1, :, :, 0] == 0) & (data[:, t, :, :, 0] > threshold)
+        
+        changes_at_t = mask.sum()
+        total_changes += changes_at_t
+        
+        if changes_at_t > 0:
+            max_val_at_t = data[:, t, :, :, 0][mask].max()
+            max_changed_value = max(max_changed_value, max_val_at_t)
+        
+        data[:, t, :, :, 0][mask] = 0
+    
+    if verbose:
+        print(f"Cleaning {property} data")
+        print(f"Total values changed: {total_changes}")
+        print(f"Percentage of data changed: {100 * total_changes / data.size:.4f}%")
+        print(f"Maximum value that was changed: {max_changed_value}")
+    
+    return data
+
 class MLBuilder:
 
     def __init__(self, config, device):
@@ -48,6 +78,9 @@ class MLBuilder:
         ds = xr.open_mfdataset(self.dataset_file)
         if (self.config.small_dataset):
             ds = ds[dict(sample=slice(0,500))]
+
+        clean_precipitation_data(ds.x.values, 'x', threshold=0.0, verbose=True)
+        clean_precipitation_data(ds.y.values, 'y', threshold=0.0, verbose=True)
 
         precipitation_x = ds.x.sel(channel=0)
         ds["x"].loc[{"channel": 0}] = np.log1p(precipitation_x)
