@@ -56,8 +56,6 @@ class Model(nn.Module):
         padding = kernel_size // 2
         self.conv_final = nn.Conv3d(in_channels=hidden_dim, out_channels=1, kernel_size=kernel_size, 
                                     padding=padding)
-        # self.conv_final = nn.Conv3d(in_channels=hidden_dim, out_channels=initial_in_channels, kernel_size=kernel_size, 
-        #                             padding=padding)
                                             
     def forward(self, x):
         x = self.conv(x)
