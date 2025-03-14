@@ -20,7 +20,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch import optim
 
-def clean_precipitation_data(data, property, threshold=0.0, verbose=True):
+def clean_precipitation_data(data, property, threshold=0.001, verbose=True):
     total_changes = 0
     max_changed_value = 0
     
