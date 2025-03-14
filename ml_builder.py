@@ -130,7 +130,7 @@ class MLBuilder:
         validation_split = 0.2
         test_split = 0.2
         # Loading the dataset
-        ds = xr.open_mfdataset(self.dataset_file)
+        ds = xr.open_mfdataset(self.dataset_file).load()
         if (self.config.small_dataset):
             ds = ds[dict(sample=slice(0,500))]
 
@@ -139,9 +139,11 @@ class MLBuilder:
 
         precipitation_x = ds.x.sel(channel=0)
         ds["x"].loc[{"channel": 0}] = np.log1p(precipitation_x)
+        print(f"Max precipitation_x: {precipitation_x.max().values}")
 
         precipitation_y = ds.y.sel(channel=0)
         ds["y"].loc[{"channel": 0}] = np.log1p(precipitation_y)
+        print(f"Max precipitation_y: {precipitation_y.max().values}")
 
         for channel in ds.x.channel.values[1:]:
             channel_data = ds.x.sel(channel=channel).values
