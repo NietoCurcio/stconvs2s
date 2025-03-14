@@ -20,7 +20,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch import optim
 
-def clean_precipitation_data(data, threshold=0.01, extreme_threshold=150.0, verbose=True):
+def clean_precipitation_data(data, property, threshold=0.01, extreme_threshold=150.0, verbose=True):
     # --- PART 1: Remove extreme precipitation values ---
     # Find extreme values
     extreme_mask = data[:, :, :, :, 0] > extreme_threshold
@@ -86,7 +86,7 @@ def clean_precipitation_data(data, threshold=0.01, extreme_threshold=150.0, verb
     max_changed_value = max(max_changed_value_t0, max_changed_value_middle, max_changed_value_t4)
     
     if verbose:
-        print("=== Extreme Precipitation Removal ===")
+        print(f"=== Extreme Precipitation Removal - {property} ===")
         print(f"Total extreme values (>{extreme_threshold} mm/h) removed: {total_extremes}")
         print(f"Percentage of data removed: {100 * total_extremes / data.size:.6f}%")
         print(f"Maximum extreme value: {max_extreme}")
