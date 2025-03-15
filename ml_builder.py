@@ -12,13 +12,52 @@ from model.ablation import *
  
 from tool.train_evaluate import Trainer, Evaluator
 from tool.dataset import NetCDFDataset, compute_sample_weights
-from tool.loss import RMSELoss
+from tool.loss import RMSELoss, MAELoss
 from tool.utils import Util
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, WeightedRandomSampler
+from torch.utils.data import DataLoader
 from torch import optim
+
+def clean_precipitation_data(data, property, threshold=0.01, extreme_threshold=150.0, verbose=True):
+    # --- PART 1: Remove extreme precipitation values ---
+    extreme_mask = data[:, :, :, :, 0] > extreme_threshold
+    total_extremes = extreme_mask.sum()
+    max_extreme = 0
+    if total_extremes > 0:
+        max_extreme = data[:, :, :, :, 0][extreme_mask].max()
+    data[:, :, :, :, 0][extreme_mask] = 0
+    
+    # --- PART 2: Clean only middle timesteps (T1, T2, T3) ---
+    total_changes_middle = 0
+    max_changed_value_middle = 0
+    
+    # Only handle middle timesteps (T1, T2, T3)
+    for t in range(1, data.shape[1] - 1):
+        mask = (data[:, t-1, :, :, 0] == 0) & (data[:, t+1, :, :, 0] == 0) & (data[:, t, :, :, 0] > threshold)
+        
+        changes_at_t = mask.sum()
+        total_changes_middle += changes_at_t
+        
+        if changes_at_t > 0:
+            max_val_at_t = data[:, t, :, :, 0][mask].max()
+            max_changed_value_middle = max(max_changed_value_middle, max_val_at_t)
+        
+        data[:, t, :, :, 0][mask] = 0
+    
+    if verbose:
+        print(f"=== Extreme Precipitation Removal ({property}) ===")
+        print(f"Total extreme values (>{extreme_threshold} mm/h) removed: {total_extremes}")
+        print(f"Percentage of data removed: {100 * total_extremes / data.size:.6f}%")
+        print(f"Maximum extreme value: {max_extreme}")
+        
+        print("\n=== Spurious Precipitation Removal ===")
+        print(f"Total spurious values removed: {total_changes_middle}")
+        print(f"Percentage of data changed: {100 * total_changes_middle / data.size:.4f}%")
+        print(f"Maximum value changed: {max_changed_value_middle}")
+    
+    return data
 
 class MLBuilder:
 
@@ -45,15 +84,20 @@ class MLBuilder:
         validation_split = 0.2
         test_split = 0.2
         # Loading the dataset
-        ds = xr.open_mfdataset(self.dataset_file)
+        ds = xr.open_mfdataset(self.dataset_file).load()
         if (self.config.small_dataset):
-            ds = ds[dict(sample=slice(0,3))]
+            ds = ds[dict(sample=slice(0,500))]
+
+        clean_precipitation_data(ds.x.values, 'x', threshold=0.0, verbose=True)
+        clean_precipitation_data(ds.y.values, 'y', threshold=0.0, verbose=True)
 
         precipitation_x = ds.x.sel(channel=0)
         ds["x"].loc[{"channel": 0}] = np.log1p(precipitation_x)
+        print(f"Max precipitation_x: {precipitation_x.max().values}")
 
         precipitation_y = ds.y.sel(channel=0)
         ds["y"].loc[{"channel": 0}] = np.log1p(precipitation_y)
+        print(f"Max precipitation_y: {precipitation_y.max().values}")
 
         train_dataset = NetCDFDataset(ds, test_split=test_split, 
                                       validation_split=validation_split)
@@ -125,10 +169,11 @@ class MLBuilder:
         model = model_bulder(train_dataset.X.shape, self.config.num_layers, self.config.hidden_dim, 
                              self.config.kernel_size, self.device, self.dropout_rate, int(self.step))
         model.to(self.device)
-        criterion = RMSELoss()
-        opt_params = {'lr': 0.0001, 
+        criterion = MAELoss()
+        opt_params = {'lr': 0.00001, 
                       'alpha': 0.9, 
                       'eps': 1e-6}
+        print(f"opt_params", opt_params)
         optimizer = torch.optim.RMSprop(model.parameters(), **opt_params)
         util = Util(self.config.model, self.dataset_type, self.config.version, self.filename_prefix)
         
@@ -261,4 +306,4 @@ class MLBuilder:
         else:
             dropout_rate = 0.
 
-        return dropout_rate
+        return self.config.dropout
