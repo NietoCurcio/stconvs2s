@@ -34,7 +34,7 @@ def get_arguments():
     parser.add_argument('--no-stop', action='store_true', dest='no_stop')
     parser.add_argument('--small-dataset', action='store_true', dest='small_dataset')
     parser.add_argument('--chirps', action='store_true')
-       
+    parser.add_argument('--dropout', type=float, default=0.0)
     return parser.parse_args()
     
 def log_mean_std(rmse_losses, mae_losses, times, times_epochs, iteration, util):

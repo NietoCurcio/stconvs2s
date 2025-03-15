@@ -19,6 +19,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch import optim
+from sklearn.preprocessing import MinMaxScaler
 
 def clean_precipitation_data(data, property, threshold=0.01, extreme_threshold=150.0, verbose=True):
     # --- PART 1: Remove extreme precipitation values ---
@@ -98,6 +99,15 @@ class MLBuilder:
         precipitation_y = ds.y.sel(channel=0)
         ds["y"].loc[{"channel": 0}] = np.log1p(precipitation_y)
         print(f"Max precipitation_y: {precipitation_y.max().values}")
+
+        for channel in ds.x.channel.values[1:]:
+            channel_data = ds.x.sel(channel=channel).values
+
+            original_shape = channel_data.shape
+            data_reshaped = channel_data.reshape(-1, 1)
+            scaled = MinMaxScaler().fit_transform(data_reshaped)
+            scaled = scaled.reshape(original_shape)
+            ds["x"].loc[{"channel": channel}] = scaled
 
         train_dataset = NetCDFDataset(ds, test_split=test_split, 
                                       validation_split=validation_split)
