@@ -96,9 +96,9 @@ class MLBuilder:
         ds["x"].loc[{"channel": 0}] = np.log1p(precipitation_x)
         print(f"Max precipitation_x: {precipitation_x.max().values}")
 
-        precipitation_y = ds.y.sel(channel=0)
-        ds["y"].loc[{"channel": 0}] = np.log1p(precipitation_y)
-        print(f"Max precipitation_y: {precipitation_y.max().values}")
+        # precipitation_y = ds.y.sel(channel=0)
+        # ds["y"].loc[{"channel": 0}] = np.log1p(precipitation_y)
+        # print(f"Max precipitation_y: {precipitation_y.max().values}")
 
         for channel in ds.x.channel.values[1:]:
             channel_data = ds.x.sel(channel=channel).values
