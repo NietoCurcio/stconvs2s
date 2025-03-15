@@ -17,7 +17,7 @@ from tool.utils import Util
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from torch import optim
 from sklearn.preprocessing import MinMaxScaler
 
