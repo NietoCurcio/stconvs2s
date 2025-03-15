@@ -12,7 +12,7 @@ from model.ablation import *
  
 from tool.train_evaluate import Trainer, Evaluator
 from tool.dataset import NetCDFDataset
-from tool.loss import RMSELoss, MAELoss
+from tool.loss import TweedieLoss
 from tool.utils import Util
 
 import torch
@@ -175,7 +175,7 @@ class MLBuilder:
         model = model_bulder(train_dataset.X.shape, self.config.num_layers, self.config.hidden_dim, 
                              self.config.kernel_size, self.device, self.dropout_rate, int(self.step))
         model.to(self.device)
-        criterion = MAELoss()
+        criterion = TweedieLoss(variance_power=1.5)
         opt_params = {'lr': 0.00001, 
                       'alpha': 0.9, 
                       'eps': 1e-6}
