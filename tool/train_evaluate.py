@@ -164,6 +164,9 @@ class Evaluator:
                     output = mask_land * output    
                 rmse_loss = self.loss_fn(output, target)
                 mae_loss = F.l1_loss(output, target)
+
+                output = torch.sigmoid(output)
+
                 cumulative_rmse += rmse_loss.item()
                 cumulative_mae += mae_loss.item()
                 
