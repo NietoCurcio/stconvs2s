@@ -24,8 +24,8 @@ class SpatialBlock(nn.Module):
                 nn.Sequential(
                     nn.Conv3d(in_channels, intermed_channels, kernel_size=spatial_kernel_size, 
                               padding=spatial_padding, bias=False),
-                    nn.BatchNorm3d(intermed_channels),
-                    nn.LeakyReLU(inplace=True)
+                    nn.BatchNorm3d(intermed_channels)
+                    # nn.LeakyReLU(inplace=True)
                 )            
             )
             self.dropout_layers.append(nn.Dropout(dropout_rate))

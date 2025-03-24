@@ -12,7 +12,7 @@ from model.ablation import *
  
 from tool.train_evaluate import Trainer, Evaluator
 from tool.dataset import NetCDFDataset
-from tool.loss import RMSELoss, MAELoss
+from tool.loss import RMSELoss, MAELoss, BCEWithLogitsLoss
 from tool.utils import Util
 
 import torch
@@ -93,12 +93,17 @@ class MLBuilder:
         clean_precipitation_data(ds.y.values, 'y', threshold=0.0, verbose=True)
 
         precipitation_x = ds.x.sel(channel=0)
+        print(f"Max precipitation_x before log1p: {precipitation_x.max().values}")
         ds["x"].loc[{"channel": 0}] = np.log1p(precipitation_x)
-        print(f"Max precipitation_x: {precipitation_x.max().values}")
+        print(f"Max precipitation_x after log1p: {precipitation_x.max().values}")
 
-        precipitation_y = ds.y.sel(channel=0)
-        ds["y"].loc[{"channel": 0}] = np.log1p(precipitation_y)
-        print(f"Max precipitation_y: {precipitation_y.max().values}")
+        # precipitation_y = ds.y.sel(channel=0)
+        # ds["y"].loc[{"channel": 0}] = np.log1p(precipitation_y)
+        # print(f"Max precipitation_y: {precipitation_y.max().values}")
+
+        ds["y"].loc[..., 0] = (ds.y.sel(channel=0) >= 5).astype(int)
+
+        print(f"Max precipitation_y after binarization: {ds.y.isel(channel=0).max().values}")
 
         for channel in ds.x.channel.values[1:]:
             channel_data = ds.x.sel(channel=channel).values
@@ -175,7 +180,7 @@ class MLBuilder:
         model = model_bulder(train_dataset.X.shape, self.config.num_layers, self.config.hidden_dim, 
                              self.config.kernel_size, self.device, self.dropout_rate, int(self.step))
         model.to(self.device)
-        criterion = MAELoss()
+        criterion = BCEWithLogitsLoss()
         opt_params = {'lr': 0.00001, 
                       'alpha': 0.9, 
                       'eps': 1e-6}

@@ -3,6 +3,15 @@ import torch.nn as nn
 import numpy as np
 # from sklearn.utils.class_weight import compute_sample_weight
 
+class BCEWithLogitsLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.loss_fn = nn.BCEWithLogitsLoss()
+
+    def forward(self, yhat, y):
+        loss = self.loss_fn(yhat, y.float())
+        return loss
+
 def compute_weights(y_true):
     y_np = y_true.cpu().detach().numpy().squeeze()
     labels = np.empty_like(y_np, dtype=int)
