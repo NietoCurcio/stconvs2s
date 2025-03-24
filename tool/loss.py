@@ -4,9 +4,9 @@ import numpy as np
 # from sklearn.utils.class_weight import compute_sample_weight
 
 class BCEWithLogitsLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         super().__init__()
-        self.loss_fn = nn.BCEWithLogitsLoss()
+        self.loss_fn = nn.BCEWithLogitsLoss(*args, **kwargs)
 
     def forward(self, yhat, y):
         loss = self.loss_fn(yhat, y.float())
