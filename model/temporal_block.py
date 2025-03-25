@@ -60,13 +60,15 @@ class RNet(nn.Module):
         self.temporal_kernel_value = kernel_size[0]
         self.conv = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=kernel_size, bias=bias),
-            nn.BatchNorm3d(out_channels)
+            nn.BatchNorm3d(out_channels),
             # nn.LeakyReLU(inplace=True)
+            nn.Sigmoid()
         )
         self.conv_k2 = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=[2,1,1], bias=bias),
-            nn.BatchNorm3d(out_channels)
+            nn.BatchNorm3d(out_channels),
             # nn.LeakyReLU(inplace=True)
+            nn.Sigmoid()
         )
         self.pad_k2 = nn.ReplicationPad3d((0, 0, 0, 0, 0, 1))
             
@@ -112,7 +114,8 @@ class TemporalCausalBlock(nn.Module):
                 nn.Conv3d(in_channels, intermed_channels, kernel_size=temporal_kernel_size, 
                           padding=temporal_padding, bias=False)
             )
-            self.lrelu_layers.append(nn.LeakyReLU())
+            # self.lrelu_layers.append(nn.LeakyReLU())
+            self.lrelu_layers.append(nn.Sigmoid())
             self.batch_layers.append(nn.BatchNorm3d(intermed_channels))
             self.dropout_layers.append(nn.Dropout(dropout_rate))
             in_channels = intermed_channels

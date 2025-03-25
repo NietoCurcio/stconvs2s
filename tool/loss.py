@@ -12,6 +12,16 @@ class BCEWithLogitsLoss(nn.Module):
         loss = self.loss_fn(yhat, y.float())
         return loss
 
+class BCELoss(nn.Module):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.loss_fn = nn.BCELoss(*args, **kwargs)
+
+    def forward(self, yhat, y):
+        loss = self.loss_fn(yhat, y.float())
+        return loss
+
+
 def compute_weights(y_true):
     y_np = y_true.cpu().detach().numpy().squeeze()
     labels = np.empty_like(y_np, dtype=int)

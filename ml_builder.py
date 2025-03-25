@@ -12,7 +12,7 @@ from model.ablation import *
  
 from tool.train_evaluate import Trainer, Evaluator
 from tool.dataset import NetCDFDataset
-from tool.loss import RMSELoss, MAELoss, BCEWithLogitsLoss
+from tool.loss import RMSELoss, MAELoss, BCEWithLogitsLoss, BCELoss
 from tool.utils import Util
 
 import torch
@@ -180,7 +180,7 @@ class MLBuilder:
         model = model_bulder(train_dataset.X.shape, self.config.num_layers, self.config.hidden_dim, 
                              self.config.kernel_size, self.device, self.dropout_rate, int(self.step))
         model.to(self.device)
-        criterion = BCEWithLogitsLoss(pos_weight=torch.tensor(2.8))
+        criterion = BCELoss()
         opt_params = {'lr': 0.00001, 
                       'alpha': 0.9, 
                       'eps': 1e-6}
