@@ -54,8 +54,10 @@ class Model(nn.Module):
             self.conv = nn.Sequential(temporal_block, spatial_block)
         
         padding = kernel_size // 2
-        self.conv_final = nn.Conv3d(in_channels=hidden_dim, out_channels=1, kernel_size=kernel_size, 
-                                    padding=padding)
+        self.conv_final = nn.Sequential(
+            nn.Conv3d(in_channels=hidden_dim, out_channels=1, kernel_size=kernel_size, padding=padding),
+            nn.Sigmoid()
+        )
         # self.conv_final = nn.Conv3d(in_channels=hidden_dim, out_channels=initial_in_channels, kernel_size=kernel_size, 
         #                             padding=padding)
                                             

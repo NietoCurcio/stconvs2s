@@ -61,14 +61,12 @@ class RNet(nn.Module):
         self.conv = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=kernel_size, bias=bias),
             nn.BatchNorm3d(out_channels),
-            # nn.LeakyReLU(inplace=True)
-            nn.Sigmoid()
+            nn.LeakyReLU(inplace=True)
         )
         self.conv_k2 = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=[2,1,1], bias=bias),
             nn.BatchNorm3d(out_channels),
-            # nn.LeakyReLU(inplace=True)
-            nn.Sigmoid()
+            nn.LeakyReLU(inplace=True)
         )
         self.pad_k2 = nn.ReplicationPad3d((0, 0, 0, 0, 0, 1))
             

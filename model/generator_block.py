@@ -28,8 +28,7 @@ class TemporalGeneratorBlock(nn.Module):
                     nn.ConvTranspose3d(in_channels, intermed_channels, [4,1,1], 
                                        stride=[2,1,1], padding=[1,0,0], bias=False),
                     nn.BatchNorm3d(intermed_channels),
-                    # nn.LeakyReLU(inplace=True)
-                    nn.Sigmoid()
+                    nn.LeakyReLU(inplace=True)
                 )            
             )
             in_channels = intermed_channels
@@ -42,8 +41,7 @@ class TemporalGeneratorBlock(nn.Module):
                     nn.Conv3d(in_channels, intermed_channels, kernel_size=spatial_kernel_size, 
                               padding=spatial_padding, bias=False),
                     nn.BatchNorm3d(intermed_channels),
-                    # nn.LeakyReLU(inplace=True)
-                    nn.Sigmoid()
+                    nn.LeakyReLU(inplace=True)
                 )
             )
             in_channels = intermed_channels
