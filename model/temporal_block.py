@@ -112,8 +112,7 @@ class TemporalCausalBlock(nn.Module):
                 nn.Conv3d(in_channels, intermed_channels, kernel_size=temporal_kernel_size, 
                           padding=temporal_padding, bias=False)
             )
-            # self.lrelu_layers.append(nn.LeakyReLU())
-            self.lrelu_layers.append(nn.Sigmoid())
+            self.lrelu_layers.append(nn.LeakyReLU())
             self.batch_layers.append(nn.BatchNorm3d(intermed_channels))
             self.dropout_layers.append(nn.Dropout(dropout_rate))
             in_channels = intermed_channels
