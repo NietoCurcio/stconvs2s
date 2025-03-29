@@ -12,7 +12,7 @@ from model.ablation import *
  
 from tool.train_evaluate import Trainer, Evaluator
 from tool.dataset import NetCDFDataset
-from tool.loss import RMSELoss, MAELoss, BCEWithLogitsLoss
+from tool.loss import RMSELoss, MAELoss, BCEWithLogitsLoss, BCELoss
 from tool.utils import Util
 
 import torch
