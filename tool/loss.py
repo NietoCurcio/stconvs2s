@@ -21,6 +21,24 @@ class BCELoss(nn.Module):
         loss = self.loss_fn(yhat, y.float())
         return loss
 
+class DiceLoss(nn.Module):
+    def __init__(self, eps=1e-6):
+        super(DiceLoss, self).__init__()
+        self.eps = eps
+
+    def forward(self, y_pred, y_true):
+        y_pred = y_pred.view(-1)
+        y_true = y_true.view(-1)
+
+        intersection = (y_pred * y_true).sum()
+
+        y_pred_sum = (y_pred * y_pred).sum()
+        y_true_sum = (y_true * y_true).sum()
+
+        dice_coeff = (2.0 * intersection + self.eps) / (y_pred_sum + y_true_sum + self.eps)
+
+        loss = 1 - dice_coeff
+        return loss
 
 def compute_weights(y_true):
     y_np = y_true.cpu().detach().numpy().squeeze()
