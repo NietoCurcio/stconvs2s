@@ -106,14 +106,17 @@ class MLBuilder:
 
         # print(f"Max precipitation_y after binarization: {ds.y.isel(channel=0).max().values}")
 
-        for channel in ds.x.channel.values[1:]:
-            channel_data = ds.x.sel(channel=channel).values
+        use_min_max = False
+        print(f"Use MinMaxScaler: {use_min_max}")
+        if use_min_max:
+            for channel in ds.x.channel.values[1:]:
+                channel_data = ds.x.sel(channel=channel).values
 
-            original_shape = channel_data.shape
-            data_reshaped = channel_data.reshape(-1, 1)
-            scaled = MinMaxScaler().fit_transform(data_reshaped)
-            scaled = scaled.reshape(original_shape)
-            ds["x"].loc[{"channel": channel}] = scaled
+                original_shape = channel_data.shape
+                data_reshaped = channel_data.reshape(-1, 1)
+                scaled = MinMaxScaler().fit_transform(data_reshaped)
+                scaled = scaled.reshape(original_shape)
+                ds["x"].loc[{"channel": channel}] = scaled
 
         train_dataset = NetCDFDataset(ds, test_split=test_split, 
                                       validation_split=validation_split)
