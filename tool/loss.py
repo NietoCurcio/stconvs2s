@@ -86,3 +86,31 @@ class MAELoss(nn.Module):
         # exit(0)
         # return loss
         return torch.sum(weights * torch.abs(y_true - y_pred)) / torch.sum(weights)
+
+
+class WeightedMSELoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, pred, target):
+        weights = torch.ones_like(target)
+        weights[(target >= 5) & (target < 25)] = 2.0
+        weights[(target >= 25) & (target < 50)] = 5.0
+        weights[target >= 50] = 10.0
+
+        return torch.mean(weights * (pred - target)**2)
+
+class AsymmetricLoss(nn.Module):
+    def __init__(self, over_penalty=1.0, under_penalty=5.0):
+        super().__init__()
+        self.over_penalty = over_penalty
+        self.under_penalty = under_penalty
+
+    def forward(self, pred, target):
+        diff = pred - target
+        loss = torch.where(
+            diff >= 0, 
+            self.over_penalty * diff**2,  # over-prediction
+            self.under_penalty * diff**2  # under-prediction
+        )
+        return loss.mean()
