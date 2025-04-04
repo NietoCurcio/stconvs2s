@@ -40,28 +40,7 @@ class DiceLoss(nn.Module):
         loss = 1 - dice_coeff
         return loss
 
-def compute_weights(y_true):
-    y_np = y_true.cpu().detach().numpy().squeeze()
-    labels = np.empty_like(y_np, dtype=int)
-    thr1 = np.log1p(5)
-    thr2 = np.log1p(25)
-    thr3 = np.log1p(50)
-    labels[y_np < thr1] = 1
-    labels[(y_np >= thr1) & (y_np < thr2)] = 2
-    labels[(y_np >= thr2) & (y_np < thr3)] = 3
-    labels[y_np >= thr3] = 4
-    # Extreme: 0.0040%, Heavy: 0.0173%, Moderate: 0.7135%, Weak: 99.2653%
-    fixed_weights = {
-        1: 1.0,  
-        2: 10.0,
-        3: 50.0,
-        4: 100.0
-    }
-    sample_weights = np.empty_like(labels, dtype=float)
-    for label, weight in fixed_weights.items():
-        sample_weights[labels == label] = weight
-    sample_weights = torch.tensor(sample_weights, dtype=torch.float32, device=y_true.device)
-    return sample_weights.unsqueeze(1)
+
 
 class RMSELoss(nn.Module):
     def __init__(self, eps=1e-6):
@@ -73,19 +52,22 @@ class RMSELoss(nn.Module):
         loss = torch.sqrt(self.mse(yhat,y) + self.eps)
         return loss
 
-class MAELoss(nn.Module):
+class WeightedMAELoss(nn.Module):
     def __init__(self):
         super().__init__()
 
     def forward(self, y_pred, y_true):
-        weights = compute_weights(y_true)
-        # loss = torch.mean(torch.abs(y_true - y_pred))
-        # print(f"y_pred.shape: {y_pred.shape}")
-        # print(f"y_true.shape: {y_true.shape}")
-        # print(f"weights.shape: {weights.shape}")
-        # exit(0)
-        # return loss
-        return torch.sum(weights * torch.abs(y_true - y_pred)) / torch.sum(weights)
+        thr1 = torch.log1p(torch.tensor(5.0, device=y_true.device))
+        thr2 = torch.log1p(torch.tensor(25.0, device=y_true.device))
+        thr3 = torch.log1p(torch.tensor(50.0, device=y_true.device))
+
+        weights = torch.ones_like(y_true)
+        weights[(y_true >= thr1) & (y_true < thr2)] = 3.0
+        weights[(y_true >= thr2) & (y_true < thr3)] = 5.0
+        weights[y_true >= thr3] = 10.0
+
+        loss = weights * torch.abs(y_true - y_pred)
+        return torch.sum(loss) / torch.sum(weights)
 
 
 class WeightedMSELoss(nn.Module):
@@ -93,12 +75,18 @@ class WeightedMSELoss(nn.Module):
         super().__init__()
 
     def forward(self, pred, target):
-        weights = torch.ones_like(target)
-        weights[(target >= 5) & (target < 25)] = 2.0
-        weights[(target >= 25) & (target < 50)] = 5.0
-        weights[target >= 50] = 10.0
+        thr1 = torch.log1p(torch.tensor(5.0, device=target.device))
+        thr2 = torch.log1p(torch.tensor(25.0, device=target.device))
+        thr3 = torch.log1p(torch.tensor(50.0, device=target.device))
 
-        return torch.mean(weights * (pred - target)**2)
+        weights = torch.ones_like(target)
+        weights[(target >= thr1) & (target < thr2)] = 2.0
+        weights[(target >= thr2) & (target < thr3)] = 5.0
+        weights[target >= thr3] = 10.0
+
+        loss = weights * (pred - target) ** 2
+        return torch.sum(loss) / torch.sum(weights)
+
 
 class AsymmetricLoss(nn.Module):
     def __init__(self, over_penalty=1.0, under_penalty=5.0):
@@ -110,7 +98,80 @@ class AsymmetricLoss(nn.Module):
         diff = pred - target
         loss = torch.where(
             diff >= 0, 
-            self.over_penalty * diff**2,  # over-prediction
-            self.under_penalty * diff**2  # under-prediction
+            self.over_penalty * diff**2, # over-prediction
+            self.under_penalty * diff**2 # under-prediction
+        )
+        return loss.mean()
+
+class AsymmetricMAELoss(nn.Module):
+    def __init__(self, over_penalty=1.0, under_penalty=5.0):
+        super().__init__()
+        self.over_penalty = over_penalty
+        self.under_penalty = under_penalty
+
+    def forward(self, pred, target):
+        diff = pred - target
+        loss = torch.where(
+            diff >= 0,
+            self.over_penalty * torch.abs(diff), # over-prediction
+            self.under_penalty * torch.abs(diff) # under-prediction
+        )
+        return loss.mean()
+
+class TargetAwareAsymmetricMSELoss(nn.Module):
+    def __init__(self, base_over_penalty=1.0, base_under_penalty=5.0):
+        super().__init__()
+        self.base_over = base_over_penalty
+        self.base_under = base_under_penalty
+
+        self.light = torch.log1p(torch.tensor(5.0))
+        self.moderate = torch.log1p(torch.tensor(25.0))
+        self.heavy = torch.log1p(torch.tensor(50.0))
+
+    def forward(self, pred, target):
+        diff = pred - target
+
+        weights = (
+            (target < self.light).float() * 1 +
+            ((target >= self.light) & (target < self.moderate)).float() * 2 +
+            ((target >= self.moderate) & (target < self.heavy)).float() * 5 +
+            (target >= self.heavy).float() * 10
+        )
+
+        penalty_under = self.base_under * weights
+
+        loss = torch.where(
+            diff >= 0,
+            self.base_over * diff**2, # over-prediction
+            penalty_under * diff**2   # under-prediction
+        )
+        return loss.mean()
+
+class TargetAwareAsymmetricMAELoss(nn.Module):
+    def __init__(self, base_over_penalty=1.0, base_under_penalty=5.0):
+        super().__init__()
+        self.base_over = base_over_penalty
+        self.base_under = base_under_penalty
+
+        self.light = torch.log1p(torch.tensor(5.0))
+        self.moderate = torch.log1p(torch.tensor(25.0))
+        self.heavy = torch.log1p(torch.tensor(50.0))
+
+    def forward(self, pred, target):
+        diff = pred - target
+
+        weights = (
+            (target < self.light).float() * 1 +
+            ((target >= self.light) & (target < self.moderate)).float() * 2 +
+            ((target >= self.moderate) & (target < self.heavy)).float() * 5 +
+            (target >= self.heavy).float() * 10
+        )
+
+        penalty_under = self.base_under * weights
+
+        loss = torch.where(
+            diff >= 0,
+            self.base_over * diff.abs(), # over-prediction
+            penalty_under * diff.abs()   # under-prediction
         )
         return loss.mean()

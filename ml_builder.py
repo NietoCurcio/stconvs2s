@@ -12,7 +12,7 @@ from model.ablation import *
  
 from tool.train_evaluate import Trainer, Evaluator
 from tool.dataset import NetCDFDataset
-from tool.loss import RMSELoss, MAELoss, BCEWithLogitsLoss, BCELoss, DiceLoss, AsymmetricLoss
+from tool.loss import RMSELoss, WeightedMAELoss, BCEWithLogitsLoss, BCELoss, DiceLoss, AsymmetricLoss, TargetAwareAsymmetricMSELoss, TargetAwareAsymmetricMAELoss
 from tool.utils import Util
 
 import torch
@@ -95,18 +95,18 @@ class MLBuilder:
         precipitation_x = ds.x.sel(channel=0)
         print(f"Max precipitation_x before log1p: {precipitation_x.max().values}")
         ds["x"].loc[{"channel": 0}] = np.log1p(precipitation_x)
-        print(f"Max precipitation_x after log1p: {precipitation_x.max().values}")
+        print(f"Max precipitation_x after log1p: {ds.x.sel(channel=0).max().values}")
 
         precipitation_y = ds.y.sel(channel=0)
         print(f"Max precipitation_y before log1p: {precipitation_y.max().values}")
         ds["y"].loc[{"channel": 0}] = np.log1p(precipitation_y)
-        print(f"Max precipitation_y after log1p: {precipitation_y.max().values}")
+        print(f"Max precipitation_y after log1p: {ds.y.sel(channel=0).max().values}")
 
         # ds["y"].loc[..., 0] = (ds.y.sel(channel=0) >= 5).astype(int)
 
         # print(f"Max precipitation_y after binarization: {ds.y.isel(channel=0).max().values}")
 
-        use_min_max = False
+        use_min_max = True
         print(f"Use MinMaxScaler: {use_min_max}")
         if use_min_max:
             for channel in ds.x.channel.values[1:]:
@@ -184,8 +184,12 @@ class MLBuilder:
         model = model_bulder(train_dataset.X.shape, self.config.num_layers, self.config.hidden_dim, 
                              self.config.kernel_size, self.device, self.dropout_rate, int(self.step))
         model.to(self.device)
-        criterion = AsymmetricLoss()
-        opt_params = {'lr': 0.00001, 
+        # criterion = AsymmetricLoss()
+        criterion = TargetAwareAsymmetricMAELoss()
+        print(f"criterion: {criterion}")
+        opt_params = {
+                        # 'lr': 0.0001, 
+                      'lr': 0.00001, 
                       'alpha': 0.9, 
                       'eps': 1e-6}
         print(f"opt_params", opt_params)
