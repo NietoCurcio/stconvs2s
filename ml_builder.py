@@ -106,24 +106,43 @@ class MLBuilder:
 
         # print(f"Max precipitation_y after binarization: {ds.y.isel(channel=0).max().values}")
 
-        use_min_max = True
-        print(f"Use MinMaxScaler: {use_min_max}")
-        if use_min_max:
-            for channel in ds.x.channel.values[1:]:
-                channel_data = ds.x.sel(channel=channel).values
-
-                original_shape = channel_data.shape
-                data_reshaped = channel_data.reshape(-1, 1)
-                scaled = MinMaxScaler().fit_transform(data_reshaped)
-                scaled = scaled.reshape(original_shape)
-                ds["x"].loc[{"channel": channel}] = scaled
-
         train_dataset = NetCDFDataset(ds, test_split=test_split, 
                                       validation_split=validation_split)
         val_dataset   = NetCDFDataset(ds, test_split=test_split, 
                                       validation_split=validation_split, is_validation=True)
         test_dataset  = NetCDFDataset(ds, test_split=test_split, 
                                       validation_split=validation_split, is_test=True)
+
+        use_min_max = True
+        print(f"Use MinMaxScaler: {use_min_max}")
+
+        if use_min_max:
+            for channel_idx in range(1, train_dataset.X.shape[1]):
+                train_data = train_dataset.X[:, channel_idx].detach().cpu().numpy()
+                original_shape = train_data.shape
+                reshaped = train_data.reshape(-1, 1)
+
+                scaler = MinMaxScaler().fit(reshaped)
+                scaled_train = scaler.transform(reshaped).reshape(original_shape)
+
+                train_dataset.X[:, channel_idx] = torch.tensor(
+                    scaled_train,
+                    dtype=train_dataset.X.dtype,
+                    device=train_dataset.X.device
+                )
+
+                for dataset_name, dataset in zip(["val", "test"], [val_dataset, test_dataset]):
+                    data = dataset.X[:, channel_idx].detach().cpu().numpy()
+                    reshaped = data.reshape(-1, 1)
+                    scaled = scaler.transform(reshaped).reshape(data.shape)
+
+                    dataset.X[:, channel_idx] = torch.tensor(
+                        scaled,
+                        dtype=dataset.X.dtype,
+                        device=dataset.X.device
+                    )
+                    print(f"Scaled {dataset_name} data for channel index {channel_idx} using training scaler")
+
         if (self.config.verbose):
             print('[X_train] Shape:', train_dataset.X.shape)
             print('[y_train] Shape:', train_dataset.y.shape)
