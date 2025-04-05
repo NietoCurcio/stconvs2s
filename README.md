@@ -100,3 +100,14 @@ Check out the other possible parameters [here](https://github.com/MLRG-CEFET-RJ/
 
 ## Contact
 To give your opinion about this work, send an email to `rafaela.nascimento@eic.cefet-rj.br`.
+
+<hr>
+
+Now I have four loss versions:
+
+1. loss.mean() with only under weights
+2. loss.mean() with both under and over weights
+3. loss_under + loss_over with only under weights
+4. loss_under + loss_over with both under and over weights
+
+3. rodar diminuindo a penalidade do underestimate em relação ao oversetimate, usar o melhor. Pensar nos valores que devemos usar. Diminui de 5 pra 4, experimento rodando. Depois que eu verificar se isso melhorou ou piorou, eu vou verificar se o loss separated melhora ou piora, vou aplicar pesos 1 pra cada por enquanto. Depois, a partir do melhor resultado (entre o loss.mean() ou loss_under + loss_over separated), vamos aplicar o both under and over weights
