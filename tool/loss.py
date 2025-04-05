@@ -175,3 +175,121 @@ class TargetAwareAsymmetricMAELoss(nn.Module):
             penalty_under * diff.abs()   # under-prediction
         )
         return loss.mean()
+
+class TargetAwareAsymmetricMAELossUnderOverWeights(nn.Module):
+    def __init__(self, base_over_penalty=1.0, base_under_penalty=5.0):
+        super().__init__()
+        self.base_over = base_over_penalty
+        self.base_under = base_under_penalty
+
+        self.light = torch.log1p(torch.tensor(5.0))
+        self.moderate = torch.log1p(torch.tensor(25.0))
+        self.heavy = torch.log1p(torch.tensor(50.0))
+
+    def forward(self, pred, target):
+        diff = pred - target
+
+        under_weights = (
+            (target < self.light).float() * 1 +
+            ((target >= self.light) & (target < self.moderate)).float() * 2 +
+            ((target >= self.moderate) & (target < self.heavy)).float() * 5 +
+            (target >= self.heavy).float() * 10
+        )
+
+        over_weights = (
+            (target < self.light).float() * 1.0 +
+            ((target >= self.light) & (target < self.moderate)).float() * 0.75 +
+            ((target >= self.moderate) & (target < self.heavy)).float() * 0.5 +
+            (target >= self.heavy).float() * 0.25
+        )
+
+        loss = torch.where(
+            diff >= 0,
+            self.base_over * over_weights * diff.abs(), # over-prediction
+            self.base_under * under_weights * diff.abs() # under-prediction
+        )
+
+        return loss.mean()
+
+
+class TargetAwareAsymmetricMAELossSeparatedByWeightedSum(nn.Module):
+    def __init__(self, base_over_penalty=1.0, base_under_penalty=5.0,
+                 loss_over_weight=1.0, loss_under_weight=1.0):
+        super().__init__()
+        self.base_over = base_over_penalty
+        self.base_under = base_under_penalty
+        self.loss_over_weight = loss_over_weight
+        self.loss_under_weight = loss_under_weight
+
+        self.light = torch.log1p(torch.tensor(5.0))
+        self.moderate = torch.log1p(torch.tensor(25.0))
+        self.heavy = torch.log1p(torch.tensor(50.0))
+
+    def forward(self, pred, target):
+        diff = pred - target
+
+        weights = (
+            (target < self.light).float() * 1 +
+            ((target >= self.light) & (target < self.moderate)).float() * 2 +
+            ((target >= self.moderate) & (target < self.heavy)).float() * 5 +
+            (target >= self.heavy).float() * 10
+        )
+
+        is_over = diff >= 0
+        is_under = ~is_over
+
+        over_loss = self.base_over * diff[is_over].abs()
+        under_loss = self.base_under * weights[is_under] * diff[is_under].abs()
+
+        over_mean = over_loss.mean() if over_loss.numel() > 0 else torch.tensor(0.0, device=target.device)
+        under_mean = (
+            under_loss.sum() / weights[is_under].sum()
+            if under_loss.numel() > 0 else torch.tensor(0.0, device=target.device)
+        )
+
+        total_loss = self.loss_over_weight * over_mean + self.loss_under_weight * under_mean
+        return total_loss
+
+class TargetAwareAsymmetricMAELossSeparatedByWeightedSumUnderOverWeights(nn.Module):
+    def __init__(self, base_over_penalty=1.0, base_under_penalty=5.0,
+                 loss_over_weight=1.0, loss_under_weight=1.0):
+        super().__init__()
+        self.base_over = base_over_penalty
+        self.base_under = base_under_penalty
+        self.loss_over_weight = loss_over_weight
+        self.loss_under_weight = loss_under_weight
+
+        self.light = torch.log1p(torch.tensor(5.0))
+        self.moderate = torch.log1p(torch.tensor(25.0))
+        self.heavy = torch.log1p(torch.tensor(50.0))
+
+    def forward(self, pred, target):
+        diff = pred - target
+        is_over = diff >= 0
+        is_under = ~is_over
+
+        under_weights = (
+            (target < self.light).float() * 1 +
+            ((target >= self.light) & (target < self.moderate)).float() * 2 +
+            ((target >= self.moderate) & (target < self.heavy)).float() * 5 +
+            (target >= self.heavy).float() * 10
+        )
+
+        over_weights = (
+            (target < self.light).float() * 1.0 +
+            ((target >= self.light) & (target < self.moderate)).float() * 0.75 +
+            ((target >= self.moderate) & (target < self.heavy)).float() * 0.5 +
+            (target >= self.heavy).float() * 0.25
+        )
+
+        over_loss = self.base_over * over_weights[is_over] * diff[is_over].abs()
+        under_loss = self.base_under * under_weights[is_under] * diff[is_under].abs()
+
+        over_mean = over_loss.mean() if over_loss.numel() > 0 else torch.tensor(0.0, device=target.device)
+        under_mean = (
+            under_loss.sum() / under_weights[is_under].sum()
+            if under_loss.numel() > 0 else torch.tensor(0.0, device=target.device)
+        )
+
+        total_loss = self.loss_over_weight * over_mean + self.loss_under_weight * under_mean
+        return total_loss
