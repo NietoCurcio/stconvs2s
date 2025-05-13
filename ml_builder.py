@@ -12,14 +12,13 @@ from model.ablation import *
  
 from tool.train_evaluate import Trainer, Evaluator
 from tool.dataset import NetCDFDataset
-from tool.loss import RMSELoss, WeightedMAELoss, BCEWithLogitsLoss, BCELoss, DiceLoss, AsymmetricLoss, TargetAwareAsymmetricMSELoss, TargetAwareAsymmetricMAELoss
+from tool.loss import RMSELoss, MAELoss
 from tool.utils import Util
 
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch import optim
-from sklearn.preprocessing import MinMaxScaler
 
 def clean_precipitation_data(data, property, threshold=0.01, extreme_threshold=150.0, verbose=True):
     # --- PART 1: Remove extreme precipitation values ---
@@ -93,18 +92,12 @@ class MLBuilder:
         clean_precipitation_data(ds.y.values, 'y', threshold=0.0, verbose=True)
 
         precipitation_x = ds.x.sel(channel=0)
-        print(f"Max precipitation_x before log1p: {precipitation_x.max().values}")
         ds["x"].loc[{"channel": 0}] = np.log1p(precipitation_x)
-        print(f"Max precipitation_x after log1p: {ds.x.sel(channel=0).max().values}")
+        print(f"Max precipitation_x: {precipitation_x.max().values}")
 
         precipitation_y = ds.y.sel(channel=0)
-        print(f"Max precipitation_y before log1p: {precipitation_y.max().values}")
         ds["y"].loc[{"channel": 0}] = np.log1p(precipitation_y)
-        print(f"Max precipitation_y after log1p: {ds.y.sel(channel=0).max().values}")
-
-        # ds["y"].loc[..., 0] = (ds.y.sel(channel=0) >= 5).astype(int)
-
-        # print(f"Max precipitation_y after binarization: {ds.y.isel(channel=0).max().values}")
+        print(f"Max precipitation_y: {precipitation_y.max().values}")
 
         train_dataset = NetCDFDataset(ds, test_split=test_split, 
                                       validation_split=validation_split)
@@ -112,37 +105,6 @@ class MLBuilder:
                                       validation_split=validation_split, is_validation=True)
         test_dataset  = NetCDFDataset(ds, test_split=test_split, 
                                       validation_split=validation_split, is_test=True)
-
-        use_min_max = True
-        print(f"Use MinMaxScaler: {use_min_max}")
-
-        if use_min_max:
-            for channel_idx in range(1, train_dataset.X.shape[1]):
-                train_data = train_dataset.X[:, channel_idx].detach().cpu().numpy()
-                original_shape = train_data.shape
-                reshaped = train_data.reshape(-1, 1)
-
-                scaler = MinMaxScaler().fit(reshaped)
-                scaled_train = scaler.transform(reshaped).reshape(original_shape)
-
-                train_dataset.X[:, channel_idx] = torch.tensor(
-                    scaled_train,
-                    dtype=train_dataset.X.dtype,
-                    device=train_dataset.X.device
-                )
-
-                for dataset_name, dataset in zip(["val", "test"], [val_dataset, test_dataset]):
-                    data = dataset.X[:, channel_idx].detach().cpu().numpy()
-                    reshaped = data.reshape(-1, 1)
-                    scaled = scaler.transform(reshaped).reshape(data.shape)
-
-                    dataset.X[:, channel_idx] = torch.tensor(
-                        scaled,
-                        dtype=dataset.X.dtype,
-                        device=dataset.X.device
-                    )
-                    print(f"Scaled {dataset_name} data for channel index {channel_idx} using training scaler")
-
         if (self.config.verbose):
             print('[X_train] Shape:', train_dataset.X.shape)
             print('[y_train] Shape:', train_dataset.y.shape)
@@ -203,12 +165,8 @@ class MLBuilder:
         model = model_bulder(train_dataset.X.shape, self.config.num_layers, self.config.hidden_dim, 
                              self.config.kernel_size, self.device, self.dropout_rate, int(self.step))
         model.to(self.device)
-        # criterion = AsymmetricLoss()
-        criterion = TargetAwareAsymmetricMAELoss()
-        print(f"criterion: {criterion}")
-        opt_params = {
-                        # 'lr': 0.0001, 
-                      'lr': 0.00001, 
+        criterion = MAELoss()
+        opt_params = {'lr': 0.00001, 
                       'alpha': 0.9, 
                       'eps': 1e-6}
         print(f"opt_params", opt_params)
